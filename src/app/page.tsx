@@ -88,6 +88,25 @@ function truncateDescription(value: string) {
   return value.length > 40 ? `${value.slice(0, 37)}...` : value;
 }
 
+type FilterKey =
+  | "description"
+  | "supportPerson"
+  | "department"
+  | "company"
+  | "workplace"
+  | "createdAt"
+  | "status";
+
+const filterFields: { key: FilterKey; label: string }[] = [
+  { key: "description", label: "Mô tả công việc" },
+  { key: "supportPerson", label: "Người cần hỗ trợ" },
+  { key: "department", label: "Phòng ban" },
+  { key: "company", label: "Công ty" },
+  { key: "workplace", label: "Nơi làm việc" },
+  { key: "createdAt", label: "Thời gian" },
+  { key: "status", label: "Trạng thái" },
+];
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [form, setForm] = useState<TaskForm>(emptyForm);
@@ -98,6 +117,18 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(emptySettings);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingForm, setEditingForm] = useState<TaskForm>(emptyForm);
+  const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
+  const [activeFilters, setActiveFilters] = useState<
+    Record<FilterKey, string[]>
+  >({
+    description: [],
+    supportPerson: [],
+    department: [],
+    company: [],
+    workplace: [],
+    createdAt: [],
+    status: [],
+  });
 
   useEffect(() => {
     async function loadTasks() {
@@ -215,6 +246,40 @@ export default function Home() {
     }
   }
 
+  function getFilterValue(task: Task, key: FilterKey) {
+    if (key === "createdAt") return formatDate(task.createdAt);
+    return task[key];
+  }
+
+  function toggleFilter(key: FilterKey, value: string) {
+    setActiveFilters((current) => ({
+      ...current,
+      [key]: current[key].includes(value)
+        ? current[key].filter((item) => item !== value)
+        : [...current[key], value],
+    }));
+  }
+
+  function clearFilter(key: FilterKey) {
+    setActiveFilters((current) => ({ ...current, [key]: [] }));
+  }
+
+  const filteredTasks = tasks.filter((task) =>
+    filterFields.every(({ key }) => {
+      const selectedValues = activeFilters[key];
+      return (
+        selectedValues.length === 0 ||
+        selectedValues.includes(getFilterValue(task, key))
+      );
+    }),
+  );
+
+  function getFilterOptions(key: FilterKey) {
+    return [...new Set(tasks.map((task) => getFilterValue(task, key)))].sort(
+      (first, second) => first.localeCompare(second, "vi"),
+    );
+  }
+
   const statusSummary = [
     {
       tone: "yellow" as const,
@@ -247,7 +312,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#fff] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
+    <main className="h-screen overflow-hidden bg-[#fff] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
       <header className="relative mx-auto flex max-w-[1440px] items-start justify-between gap-5 border-b border-[#e3e7e9] pb-7 sm:items-center">
         <div className="flex items-center gap-3.5">
           <span className="grid h-[42px] w-[42px] rotate-[-6deg] place-items-center bg-[#28745b] text-[21px] font-bold text-white">
@@ -338,222 +403,280 @@ export default function Home() {
             </strong>
             <span>Bắt đầu ghi nhận công việc đầu tiên của bạn.</span>
           </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="flex min-h-[250px] min-w-[1000px] flex-col items-center justify-center gap-2 border border-dashed border-[#cbd4cf] text-[13px] text-[#727a82]">
+            Không tìm thấy công việc phù hợp với bộ lọc.
+          </div>
         ) : (
           <div className="min-w-[1000px]">
             <div className="grid grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_48px] items-center gap-4 px-4 pb-3 text-[10px] font-bold uppercase tracking-[1.2px] text-[#727a82]">
-              <span>Mô tả công việc</span>
-              <span>Người cần hỗ trợ</span>
-              <span>Phòng ban</span>
-              <span>Công ty</span>
-              <span>Nơi làm việc</span>
-              <span>Thời gian</span>
-              <span>Trạng thái</span>
-              <span aria-hidden="true" />
-            </div>
-            <div>
-              {tasks.map((task) => (
-                <div key={task._id}>
-                  <article
-                    className={`grid grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_48px] items-center gap-4 px-4 py-4 my-2 text-[13px] text-[#515a60] transition-colors ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff4cc]" : getStatusTone(task.status) === "red" ? "bg-[#fae0e0]" : "bg-[#f1e7ff]"}`}
+              {filterFields.map(({ key, label }) => (
+                <div className="relative" key={key}>
+                  <button
+                    className={`inline-flex items-center gap-1 border-0 bg-transparent p-0 text-left text-[10px] font-bold uppercase tracking-[1.2px] transition hover:text-[#28745b] ${activeFilters[key].length ? "text-[#28745b]" : "text-[#727a82]"}`}
+                    type="button"
+                    aria-expanded={openFilter === key}
+                    onClick={() =>
+                      setOpenFilter((current) => (current === key ? null : key))
+                    }
                   >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span
-                        className={`h-[9px] w-[9px] shrink-0 rounded-full ${getStatusTone(task.status) === "green" ? "bg-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#d39b00]" : getStatusTone(task.status) === "red" ? "bg-[#bd4c4c]" : "bg-[#7c4db3]"}`}
-                      />
-                      <div className="min-w-0">
-                        <h3
-                          className="font-bold leading-[1.4] text-[#20252b]"
-                          title={task.description}
-                        >
-                          {truncateDescription(task.description)}
-                        </h3>
-                        {task.notes && (
-                          <p className="mt-1 truncate text-xs text-[#727a82]">
-                            {task.notes}
-                          </p>
+                    {label}
+                    <span className="text-xs normal-case">⌄</span>
+                  </button>
+                  {openFilter === key && (
+                    <div className="absolute left-0 top-6 z-20 min-w-[190px] bg-white p-3 normal-case tracking-normal text-[#515a60] shadow-[0_10px_25px_#27382d24] ring-1 ring-[#e3e7e9]">
+                      <div className="mb-2 flex items-center justify-between gap-4 border-b border-[#e3e7e9] pb-2 text-[11px] font-bold">
+                        <span>Lọc {label.toLowerCase()}</span>
+                        {activeFilters[key].length > 0 && (
+                          <button
+                            className="border-0 bg-transparent p-0 text-[10px] font-normal text-[#28745b] hover:underline"
+                            type="button"
+                            onClick={() => clearFilter(key)}
+                          >
+                            Xóa
+                          </button>
                         )}
                       </div>
-                    </div>
-                    <span className="truncate">
-                      {task.supportPerson || "-"}
-                    </span>
-                    <span className="truncate">{task.department || "-"}</span>
-                    <span className="truncate">{task.company || "-"}</span>
-                    <span className="truncate">{task.workplace || "-"}</span>
-                    <time
-                      className="whitespace-nowrap text-[12px]"
-                      dateTime={task.createdAt}
-                    >
-                      {formatDate(task.createdAt)}
-                    </time>
-                    <span
-                      className={`w-fit px-2 py-1 text-[12px] font-bold ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9] text-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff0e7] text-[#ae5d32]" : getStatusTone(task.status) === "red" ? "bg-[#fae8e8] text-[#a34646]" : "bg-[#f1e7ff] text-[#7c4db3]"}`}
-                    >
-                      {statusLabels[task.status] || task.status}
-                    </span>
-                    <button
-                      className="grid h-8 w-8 place-items-center border-0 bg-transparent text-base text-[#727a82] transition hover:bg-white/70 hover:text-[#28745b]"
-                      type="button"
-                      aria-label={`Sửa công việc ${task.description}`}
-                      title="Sửa công việc"
-                      onClick={() => startEditing(task)}
-                    >
-                      ✎
-                    </button>
-                  </article>
-                  {editingTaskId === task._id && (
-                    <form
-                      className="grid gap-4 bg-white px-4 py-5 shadow-[inset_0_3px_0_#28745b] sm:grid-cols-2 lg:grid-cols-4"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void saveTaskEdit();
-                      }}
-                    >
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60] lg:col-span-2">
-                        Mô tả công việc *
-                        <textarea
-                          className="w-full resize-y border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          rows={2}
-                          required
-                          value={editingForm.description}
-                          onChange={(event) =>
-                            updateEditingForm("description", event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                        Người cần hỗ trợ
-                        <input
-                          className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingForm.supportPerson}
-                          onChange={(event) =>
-                            updateEditingForm(
-                              "supportPerson",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                        Danh mục
-                        <select
-                          className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingForm.category}
-                          onChange={(event) =>
-                            updateEditingForm("category", event.target.value)
-                          }
-                        >
-                          <option value="">Chọn danh mục</option>
-                          {settings.category.map((item) => (
-                            <option key={item} value={item}>
-                              {item}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                        Phòng ban
-                        <select
-                          className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingForm.department}
-                          onChange={(event) =>
-                            updateEditingForm("department", event.target.value)
-                          }
-                        >
-                          <option value="">Chọn phòng ban</option>
-                          {settings.department.map((item) => (
-                            <option key={item} value={item}>
-                              {item}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                        Công ty
-                        <select
-                          className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingForm.company}
-                          onChange={(event) =>
-                            updateEditingForm("company", event.target.value)
-                          }
-                        >
-                          <option value="">Chọn công ty</option>
-                          {settings.company.map((item) => (
-                            <option key={item} value={item}>
-                              {item}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                        Nơi làm việc
-                        <select
-                          className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingForm.workplace}
-                          onChange={(event) =>
-                            updateEditingForm("workplace", event.target.value)
-                          }
-                        >
-                          <option value="">Chọn Tỉnh/thành</option>
-                          {settings.workplace.map((item) => (
-                            <option key={item} value={item}>
-                              {item}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                        Trạng thái
-                        <select
-                          className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingForm.status}
-                          onChange={(event) =>
-                            updateEditingForm("status", event.target.value)
-                          }
-                        >
-                          {(settings.status.length
-                            ? settings.status.map(
-                                (item) => [item, item] as const,
-                              )
-                            : Object.entries(statusLabels)
-                          ).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-[#515a60] lg:col-span-2">
-                        Ghi chú
-                        <textarea
-                          className="w-full resize-y border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          rows={2}
-                          value={editingForm.notes}
-                          onChange={(event) =>
-                            updateEditingForm("notes", event.target.value)
-                          }
-                        />
-                      </label>
-                      <div className="flex items-end justify-end gap-2 lg:col-span-2">
-                        <button
-                          className="border border-[#e3e7e9] bg-white px-[17px] py-[11px] text-[#727a82] hover:border-[#a34646] hover:text-[#a34646]"
-                          type="button"
-                          onClick={cancelEditing}
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          className="border-0 bg-[#28745b] px-[17px] py-[11px] font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60"
-                          type="submit"
-                          disabled={isSaving}
-                        >
-                          Lưu thay đổi
-                        </button>
+                      <div className="grid max-h-52 gap-1 overflow-y-auto">
+                        {getFilterOptions(key).map((value) => (
+                          <label
+                            className="flex cursor-pointer items-center gap-2 px-1 py-1.5 text-xs hover:bg-[#f5f7f5]"
+                            key={value}
+                          >
+                            <input
+                              className="accent-[#28745b]"
+                              type="checkbox"
+                              checked={activeFilters[key].includes(value)}
+                              onChange={() => toggleFilter(key, value)}
+                            />
+                            <span className="max-w-[220px] truncate">
+                              {key === "status"
+                                ? statusLabels[value] || value
+                                : key === "description"
+                                  ? truncateDescription(value)
+                                  : value}
+                            </span>
+                          </label>
+                        ))}
                       </div>
-                    </form>
+                    </div>
                   )}
                 </div>
               ))}
+              <span aria-hidden="true" />
+            </div>
+            <div className="h-[500px] overflow-y-auto">
+              <div>
+                {filteredTasks.map((task) => (
+                  <div key={task._id}>
+                    <article
+                      className={`grid grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_48px] items-center gap-4 px-4 py-4 my-2 text-[13px] text-[#515a60] transition-colors ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff4cc]" : getStatusTone(task.status) === "red" ? "bg-[#fae0e0]" : "bg-[#f1e7ff]"}`}
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          className={`h-[9px] w-[9px] shrink-0 rounded-full ${getStatusTone(task.status) === "green" ? "bg-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#d39b00]" : getStatusTone(task.status) === "red" ? "bg-[#bd4c4c]" : "bg-[#7c4db3]"}`}
+                        />
+                        <div className="min-w-0">
+                          <h3
+                            className="font-bold leading-[1.4] text-[#20252b]"
+                            title={task.description}
+                          >
+                            {truncateDescription(task.description)}
+                          </h3>
+                          {task.notes && (
+                            <p className="mt-1 truncate text-xs text-[#727a82]">
+                              {task.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="truncate">
+                        {task.supportPerson || "-"}
+                      </span>
+                      <span className="truncate">{task.department || "-"}</span>
+                      <span className="truncate">{task.company || "-"}</span>
+                      <span className="truncate">{task.workplace || "-"}</span>
+                      <time
+                        className="whitespace-nowrap text-[12px]"
+                        dateTime={task.createdAt}
+                      >
+                        {formatDate(task.createdAt)}
+                      </time>
+                      <span
+                        className={`w-fit px-2 py-1 text-[12px] font-bold ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9] text-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff0e7] text-[#ae5d32]" : getStatusTone(task.status) === "red" ? "bg-[#fae8e8] text-[#a34646]" : "bg-[#f1e7ff] text-[#7c4db3]"}`}
+                      >
+                        {statusLabels[task.status] || task.status}
+                      </span>
+                      <button
+                        className="grid h-8 w-8 place-items-center border-0 bg-transparent text-base text-[#727a82] transition hover:bg-white/70 hover:text-[#28745b]"
+                        type="button"
+                        aria-label={`Sửa công việc ${task.description}`}
+                        title="Sửa công việc"
+                        onClick={() => startEditing(task)}
+                      >
+                        ✎
+                      </button>
+                    </article>
+                    {editingTaskId === task._id && (
+                      <form
+                        className="grid gap-4 bg-white px-4 py-5 shadow-[inset_0_3px_0_#28745b] sm:grid-cols-2 lg:grid-cols-4"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void saveTaskEdit();
+                        }}
+                      >
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60] lg:col-span-2">
+                          Mô tả công việc *
+                          <textarea
+                            className="w-full resize-y border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            rows={2}
+                            required
+                            value={editingForm.description}
+                            onChange={(event) =>
+                              updateEditingForm(
+                                "description",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Người cần hỗ trợ
+                          <input
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingForm.supportPerson}
+                            onChange={(event) =>
+                              updateEditingForm(
+                                "supportPerson",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Danh mục
+                          <select
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingForm.category}
+                            onChange={(event) =>
+                              updateEditingForm("category", event.target.value)
+                            }
+                          >
+                            <option value="">Chọn danh mục</option>
+                            {settings.category.map((item) => (
+                              <option key={item} value={item}>
+                                {item}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Phòng ban
+                          <select
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingForm.department}
+                            onChange={(event) =>
+                              updateEditingForm(
+                                "department",
+                                event.target.value,
+                              )
+                            }
+                          >
+                            <option value="">Chọn phòng ban</option>
+                            {settings.department.map((item) => (
+                              <option key={item} value={item}>
+                                {item}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Công ty
+                          <select
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingForm.company}
+                            onChange={(event) =>
+                              updateEditingForm("company", event.target.value)
+                            }
+                          >
+                            <option value="">Chọn công ty</option>
+                            {settings.company.map((item) => (
+                              <option key={item} value={item}>
+                                {item}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Nơi làm việc
+                          <select
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingForm.workplace}
+                            onChange={(event) =>
+                              updateEditingForm("workplace", event.target.value)
+                            }
+                          >
+                            <option value="">Chọn Tỉnh/thành</option>
+                            {settings.workplace.map((item) => (
+                              <option key={item} value={item}>
+                                {item}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Trạng thái
+                          <select
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingForm.status}
+                            onChange={(event) =>
+                              updateEditingForm("status", event.target.value)
+                            }
+                          >
+                            {(settings.status.length
+                              ? settings.status.map(
+                                  (item) => [item, item] as const,
+                                )
+                              : Object.entries(statusLabels)
+                            ).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60] lg:col-span-2">
+                          Ghi chú
+                          <textarea
+                            className="w-full resize-y border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            rows={2}
+                            value={editingForm.notes}
+                            onChange={(event) =>
+                              updateEditingForm("notes", event.target.value)
+                            }
+                          />
+                        </label>
+                        <div className="flex items-end justify-end gap-2 lg:col-span-2">
+                          <button
+                            className="border border-[#e3e7e9] bg-white px-[17px] py-[11px] text-[#727a82] hover:border-[#a34646] hover:text-[#a34646]"
+                            type="button"
+                            onClick={cancelEditing}
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            className="border-0 bg-[#28745b] px-[17px] py-[11px] font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60"
+                            type="submit"
+                            disabled={isSaving}
+                          >
+                            Lưu thay đổi
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
