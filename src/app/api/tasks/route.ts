@@ -1,15 +1,81 @@
 import { NextResponse } from "next/server";
+import type { QueryFilter } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
-import { Task, type TaskStatus } from "@/models/Task";
+import { Task, type TaskDocument, type TaskStatus } from "@/models/Task";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+const TASKS_PER_PAGE = 20;
+
+export async function GET(request: Request) {
   try {
     await connectToDatabase();
-    const tasks = await Task.find().sort({ createdAt: -1 }).lean();
+    const { searchParams } = new URL(request.url);
+    const cursorDate = searchParams.get("cursorDate");
+    const cursorId = searchParams.get("cursorId");
+    const clauses: QueryFilter<TaskDocument>[] = [];
+    const fieldFilters = [
+      ["category", "category"],
+      ["supportPerson", "supportPerson"],
+      ["department", "department"],
+      ["company", "company"],
+      ["workplace", "workplace"],
+      ["status", "status"],
+    ] as const;
 
-    return NextResponse.json(tasks);
+    for (const [parameter, field] of fieldFilters) {
+      const values = searchParams.getAll(parameter).filter(Boolean);
+      if (values.length) clauses.push({ [field]: { $in: values } });
+    }
+
+    const selectedDates = searchParams.getAll("createdAt").filter(Boolean);
+    if (selectedDates.length) {
+      const dateRanges = selectedDates.flatMap((value) => {
+        const [day, month, year] = value.split("/").map(Number);
+        if (!day || !month || !year) return [];
+        return [
+          {
+            createdAt: {
+              $gte: new Date(year, month - 1, day),
+              $lt: new Date(year, month - 1, day + 1),
+            },
+          },
+        ];
+      });
+      if (dateRanges.length) clauses.push({ $or: dateRanges });
+    }
+
+    if (cursorDate && cursorId) {
+      clauses.push({
+        $or: [
+          { createdAt: { $lt: new Date(cursorDate) } },
+          { createdAt: new Date(cursorDate), _id: { $lt: cursorId } },
+        ],
+      });
+    }
+
+    const query: QueryFilter<TaskDocument> = clauses.length
+      ? { $and: clauses }
+      : {};
+
+    const tasks = await Task.find(query)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(TASKS_PER_PAGE + 1)
+      .lean();
+    const hasMore = tasks.length > TASKS_PER_PAGE;
+    const pageTasks = tasks.slice(0, TASKS_PER_PAGE);
+    const lastTask = pageTasks.at(-1);
+
+    return NextResponse.json({
+      tasks: pageTasks,
+      hasMore,
+      nextCursor: lastTask
+        ? {
+            date: lastTask.createdAt,
+            id: lastTask._id.toString(),
+          }
+        : null,
+    });
   } catch {
     return NextResponse.json(
       { error: "Không thể tải danh sách công việc" },
@@ -138,6 +204,36 @@ export async function PUT(request: Request) {
   } catch {
     return NextResponse.json(
       { error: "Không thể cập nhật công việc" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json();
+    const id = typeof body.id === "string" ? body.id : "";
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Mã công việc là bắt buộc" },
+        { status: 400 },
+      );
+    }
+
+    await connectToDatabase();
+    const task = await Task.findByIdAndDelete(id).lean();
+    if (!task) {
+      return NextResponse.json(
+        { error: "Không tìm thấy công việc cần xóa" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ id });
+  } catch {
+    return NextResponse.json(
+      { error: "Không thể xóa công việc" },
       { status: 500 },
     );
   }

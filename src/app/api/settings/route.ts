@@ -100,3 +100,35 @@ export async function PUT(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json();
+    const type = body.type as SettingType;
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+
+    if (!SETTING_TYPES.includes(type) || !name) {
+      return NextResponse.json(
+        { error: "Loại và tên cấu hình là bắt buộc" },
+        { status: 400 },
+      );
+    }
+
+    await connectToDatabase();
+    const item = await Setting.findOneAndDelete({ type, name }).lean();
+
+    if (!item) {
+      return NextResponse.json(
+        { error: "Không tìm thấy giá trị cần xóa" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ type, name });
+  } catch {
+    return NextResponse.json(
+      { error: "Không thể xóa cấu hình" },
+      { status: 500 },
+    );
+  }
+}

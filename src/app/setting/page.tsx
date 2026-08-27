@@ -2,6 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCheck,
+  faPencil,
+  faTrashCan,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 
 type SettingType =
   | "category"
@@ -53,10 +60,15 @@ export default function SettingsPage() {
     type: SettingType;
     index: number;
   } | null>(null);
+  const [deletingItem, setDeletingItem] = useState<{
+    type: SettingType;
+    index: number;
+  } | null>(null);
   const [editingName, setEditingName] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -71,6 +83,7 @@ export default function SettingsPage() {
 
   function startAdding(type: SettingType) {
     setEditingItem(null);
+    setDeletingItem(null);
     setActiveType(type);
     setName("");
     setError("");
@@ -78,9 +91,49 @@ export default function SettingsPage() {
 
   function startEditing(type: SettingType, index: number, item: string) {
     setActiveType(null);
+    setDeletingItem(null);
     setEditingItem({ type, index });
     setEditingName(item);
     setError("");
+  }
+
+  function askToDelete(type: SettingType, index: number) {
+    setActiveType(null);
+    setEditingItem(null);
+    setDeletingItem({ type, index });
+    setError("");
+  }
+
+  async function deleteSetting() {
+    if (!deletingItem) return;
+    const { type, index } = deletingItem;
+    const item = settings[type][index];
+    setIsDeleting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/settings", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, name: item }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể xóa cấu hình");
+      }
+      setSettings((current) => ({
+        ...current,
+        [type]: current[type].filter((_, itemIndex) => itemIndex !== index),
+      }));
+      setDeletingItem(null);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Không thể xóa cấu hình",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   function cancelEditing() {
@@ -249,10 +302,39 @@ export default function SettingsPage() {
               <ul className="mt-[17px] grid list-none gap-2 p-0">
                 {settings[section.type].map((item, index) => (
                   <li
-                    className={`flex items-center gap-2 bg-[#f5f7f5] px-[11px] py-[9px] text-[13px] text-[#515a60] transition-[height] duration-200 ${editingItem?.type === section.type && editingItem.index === index ? "h-20" : "min-h-10"}`}
+                    className={`flex items-center gap-2 px-[11px] py-[9px] text-[13px] transition-[height] duration-200 ${deletingItem?.type === section.type && deletingItem.index === index ? "min-h-12 bg-[#fae0e0] text-[#a34646]" : "bg-[#f5f7f5] text-[#515a60]"} ${editingItem?.type === section.type && editingItem.index === index ? "h-20" : "min-h-10"}`}
                     key={item}
                   >
-                    {editingItem?.type === section.type &&
+                    {deletingItem?.type === section.type &&
+                    deletingItem.index === index ? (
+                      <>
+                        <span className="min-w-0 flex-1 truncate font-bold">
+                          Xóa “{item}”?
+                        </span>
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            className="grid h-8 w-8 place-items-center border-0 bg-[#bd4c4c] text-white transition hover:bg-[#a34646] disabled:cursor-wait disabled:opacity-60"
+                            type="button"
+                            aria-label={`Đồng ý xóa ${item}`}
+                            title="Đồng ý xóa"
+                            disabled={isDeleting}
+                            onClick={() => void deleteSetting()}
+                          >
+                            <FontAwesomeIcon icon={faCheck} />
+                          </button>
+                          <button
+                            className="grid h-8 w-8 place-items-center border-0 bg-white text-[#727a82] transition hover:text-[#20252b] disabled:opacity-60"
+                            type="button"
+                            aria-label="Hủy xóa"
+                            title="Hủy"
+                            disabled={isDeleting}
+                            onClick={() => setDeletingItem(null)}
+                          >
+                            <FontAwesomeIcon icon={faXmark} />
+                          </button>
+                        </div>
+                      </>
+                    ) : editingItem?.type === section.type &&
                     editingItem.index === index ? (
                       <>
                         <input
@@ -275,7 +357,7 @@ export default function SettingsPage() {
                             onClick={() => void saveEdit()}
                             disabled={isSaving}
                           >
-                            ✓
+                            <FontAwesomeIcon icon={faCheck} />
                           </button>
                           <button
                             className="grid h-8 w-8 place-items-center border border-[#d9dfe0] bg-white text-base text-[#727a82] hover:border-[#a34646] hover:text-[#a34646]"
@@ -284,7 +366,7 @@ export default function SettingsPage() {
                             onClick={cancelEditing}
                             disabled={isSaving}
                           >
-                            ×
+                            <FontAwesomeIcon icon={faXmark} />
                           </button>
                         </div>
                       </>
@@ -299,7 +381,16 @@ export default function SettingsPage() {
                             startEditing(section.type, index, item)
                           }
                         >
-                          ✎
+                          <FontAwesomeIcon icon={faPencil} />
+                        </button>
+                        <button
+                          className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#fae0e0] hover:text-[#bd4c4c]"
+                          type="button"
+                          aria-label={`Xóa ${item}`}
+                          title="Xóa"
+                          onClick={() => askToDelete(section.type, index)}
+                        >
+                          <FontAwesomeIcon icon={faTrashCan} />
                         </button>
                       </>
                     )}
