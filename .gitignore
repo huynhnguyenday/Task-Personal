@@ -23,6 +23,10 @@
 # misc
 .DS_Store
 *.pem
+.vscode/
+
+# one-off local data migration scripts
+/scripts/migrate-csv-tasks.mjs
 
 # debug
 npm-debug.log*
