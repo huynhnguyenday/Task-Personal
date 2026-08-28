@@ -150,6 +150,7 @@ export async function PUT(request: Request) {
     const id = typeof body.id === "string" ? body.id : "";
     const description =
       typeof body.description === "string" ? body.description.trim() : "";
+    const createdAt = new Date(body.createdAt);
     const requiredFields = {
       supportPerson: "Người cần hỗ trợ",
       category: "Danh mục",
@@ -162,6 +163,17 @@ export async function PUT(request: Request) {
     if (!id || !description) {
       return NextResponse.json(
         { error: "Mã và mô tả công việc là bắt buộc" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      typeof body.createdAt !== "string" ||
+      !body.createdAt ||
+      Number.isNaN(createdAt.getTime())
+    ) {
+      return NextResponse.json(
+        { error: "Ngày giờ tạo không hợp lệ" },
         { status: 400 },
       );
     }
@@ -189,8 +201,9 @@ export async function PUT(request: Request) {
         workplace: body.workplace.trim(),
         status,
         notes: body.notes ?? "",
+        createdAt,
       },
-      { new: true, runValidators: true },
+      { new: true, runValidators: true, overwriteImmutable: true },
     ).lean();
 
     if (!task) {

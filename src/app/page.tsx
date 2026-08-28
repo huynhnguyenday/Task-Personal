@@ -25,6 +25,7 @@ type Task = {
   createdAt: string;
 };
 type TaskForm = Omit<Task, "_id" | "createdAt">;
+type EditingTaskForm = TaskForm & { createdAt: string };
 type Settings = {
   category: string[];
   department: string[];
@@ -43,6 +44,7 @@ const emptyForm: TaskForm = {
   status: "",
   notes: "",
 };
+const emptyEditingForm: EditingTaskForm = { ...emptyForm, createdAt: "" };
 const statusLabels: Record<TaskStatus, string> = {
   TODO: "Chưa bắt đầu",
   IN_PROGRESS: "Đang thực hiện",
@@ -100,8 +102,24 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatDateTimeInput(value: string) {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function truncateDescription(value: string) {
   return value.length > 40 ? `${value.slice(0, 37)}...` : value;
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLocaleLowerCase("vi");
 }
 
 function dateInputToFilterValue(value: string) {
@@ -184,8 +202,10 @@ export default function Home() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editingForm, setEditingForm] = useState<TaskForm>(emptyForm);
+  const [editingForm, setEditingForm] =
+    useState<EditingTaskForm>(emptyEditingForm);
   const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
+  const [supportPersonSearch, setSupportPersonSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<
     Record<FilterKey, string[]>
   >(emptyFilters);
@@ -307,6 +327,7 @@ export default function Home() {
       workplace: task.workplace,
       status: task.status,
       notes: task.notes,
+      createdAt: formatDateTimeInput(task.createdAt),
     });
   }
 
@@ -345,12 +366,12 @@ export default function Home() {
   function cancelEditing() {
     if (!isSaving) {
       setEditingTaskId(null);
-      setEditingForm(emptyForm);
+      setEditingForm(emptyEditingForm);
       setError("");
     }
   }
 
-  function updateEditingForm(field: keyof TaskForm, value: string) {
+  function updateEditingForm(field: keyof EditingTaskForm, value: string) {
     setEditingForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -372,7 +393,7 @@ export default function Home() {
       );
       void fetchStatusCounts().then(setStatusCounts).catch(() => undefined);
       setEditingTaskId(null);
-      setEditingForm(emptyForm);
+      setEditingForm(emptyEditingForm);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -434,6 +455,7 @@ export default function Home() {
   function clearAllFilters() {
     setActiveFilters({ ...emptyFilters });
     setOpenFilter(null);
+    setSupportPersonSearch("");
   }
 
   const filteredTasks = tasks.filter((task) =>
@@ -595,9 +617,12 @@ export default function Home() {
                     className={`inline-flex items-center gap-1 border-0 bg-transparent p-0 text-left text-[12px] font-bold uppercase tracking-[1.2px] transition hover:text-[#28745b] ${activeFilters[key].length ? "text-[#28745b]" : "text-[#727a82]"}`}
                     type="button"
                     aria-expanded={openFilter === key}
-                    onClick={() =>
-                      setOpenFilter((current) => (current === key ? null : key))
-                    }
+                    onClick={() => {
+                      setOpenFilter((current) =>
+                        current === key ? null : key,
+                      );
+                      if (key === "supportPerson") setSupportPersonSearch("");
+                    }}
                   >
                     {label}
                     <FontAwesomeIcon
@@ -639,8 +664,34 @@ export default function Home() {
                           />
                         </label>
                       ) : (
-                        <div className="grid max-h-52 gap-1 overflow-y-auto">
-                          {getFilterOptions(key).map((value) => (
+                        <>
+                          {key === "supportPerson" && (
+                            <input
+                              className="mb-2 w-full border border-[#d9dfe0] bg-[#fafbfa] px-2.5 py-2 text-xs font-normal text-[#20252b] outline-none placeholder:text-[#9aa1a6] focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                              type="search"
+                              value={supportPersonSearch}
+                              onChange={(event) =>
+                                setSupportPersonSearch(event.target.value)
+                              }
+                              placeholder="Tìm người hỗ trợ..."
+                              aria-label="Tìm người cần hỗ trợ"
+                              autoFocus
+                            />
+                          )}
+                          <div
+                            className={`grid gap-1 overflow-y-auto ${key === "supportPerson" ? "max-h-40" : "max-h-52"}`}
+                          >
+                          {getFilterOptions(key)
+                            .filter(
+                              (value) =>
+                                key !== "supportPerson" ||
+                                normalizeSearchText(value).includes(
+                                  normalizeSearchText(
+                                    supportPersonSearch.trim(),
+                                  ),
+                                ),
+                            )
+                            .map((value) => (
                             <label
                               className="flex cursor-pointer items-center gap-2 px-1 py-1.5 text-xs hover:bg-[#f5f7f5]"
                               key={value}
@@ -660,7 +711,20 @@ export default function Home() {
                               </span>
                             </label>
                           ))}
-                        </div>
+                          {key === "supportPerson" &&
+                            getFilterOptions(key).filter((value) =>
+                              normalizeSearchText(value).includes(
+                                normalizeSearchText(
+                                  supportPersonSearch.trim(),
+                                ),
+                              ),
+                            ).length === 0 && (
+                              <p className="px-1 py-2 text-xs font-normal text-[#9aa1a6]">
+                                Không tìm thấy người phù hợp
+                              </p>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -928,6 +992,18 @@ export default function Home() {
                             value={editingForm.notes}
                             onChange={(event) =>
                               updateEditingForm("notes", event.target.value)
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Ngày giờ tạo
+                          <input
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            type="datetime-local"
+                            required
+                            value={editingForm.createdAt}
+                            onChange={(event) =>
+                              updateEditingForm("createdAt", event.target.value)
                             }
                           />
                         </label>
