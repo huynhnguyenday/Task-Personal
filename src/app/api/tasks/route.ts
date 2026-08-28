@@ -150,7 +150,9 @@ export async function PUT(request: Request) {
     const id = typeof body.id === "string" ? body.id : "";
     const description =
       typeof body.description === "string" ? body.description.trim() : "";
-    const createdAt = new Date(body.createdAt);
+    const createdAtValue =
+      typeof body.createdAt === "string" ? body.createdAt : "";
+    const createdAt = new Date(`${createdAtValue}T00:00:00.000Z`);
     const requiredFields = {
       supportPerson: "Người cần hỗ trợ",
       category: "Danh mục",
@@ -168,12 +170,12 @@ export async function PUT(request: Request) {
     }
 
     if (
-      typeof body.createdAt !== "string" ||
-      !body.createdAt ||
-      Number.isNaN(createdAt.getTime())
+      !/^\d{4}-\d{2}-\d{2}$/.test(createdAtValue) ||
+      Number.isNaN(createdAt.getTime()) ||
+      createdAt.toISOString().slice(0, 10) !== createdAtValue
     ) {
       return NextResponse.json(
-        { error: "Ngày giờ tạo không hợp lệ" },
+        { error: "Ngày tạo không hợp lệ" },
         { status: 400 },
       );
     }

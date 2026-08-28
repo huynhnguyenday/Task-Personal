@@ -25,6 +25,7 @@ type Task = {
   createdAt: string;
 };
 type TaskForm = Omit<Task, "_id" | "createdAt">;
+type EditingTaskForm = TaskForm & { createdAt: string };
 type Settings = {
   category: string[];
   department: string[];
@@ -43,6 +44,7 @@ const emptyForm: TaskForm = {
   status: "",
   notes: "",
 };
+const emptyEditingForm: EditingTaskForm = { ...emptyForm, createdAt: "" };
 const statusLabels: Record<TaskStatus, string> = {
   TODO: "Chưa bắt đầu",
   IN_PROGRESS: "Đang thực hiện",
@@ -102,6 +104,13 @@ function formatDate(value: string) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatDateInput(value: string) {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function truncateDescription(value: string) {
@@ -181,7 +190,8 @@ export default function Home() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editingForm, setEditingForm] = useState<TaskForm>(emptyForm);
+  const [editingForm, setEditingForm] =
+    useState<EditingTaskForm>(emptyEditingForm);
   const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
   const [activeFilters, setActiveFilters] = useState<
     Record<FilterKey, string[]>
@@ -303,6 +313,7 @@ export default function Home() {
       workplace: task.workplace,
       status: task.status,
       notes: task.notes,
+      createdAt: formatDateInput(task.createdAt),
     });
   }
 
@@ -340,12 +351,12 @@ export default function Home() {
   function cancelEditing() {
     if (!isSaving) {
       setEditingTaskId(null);
-      setEditingForm(emptyForm);
+      setEditingForm(emptyEditingForm);
       setError("");
     }
   }
 
-  function updateEditingForm(field: keyof TaskForm, value: string) {
+  function updateEditingForm(field: keyof EditingTaskForm, value: string) {
     setEditingForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -366,7 +377,7 @@ export default function Home() {
         current.map((task) => (task._id === result._id ? result : task)),
       );
       setEditingTaskId(null);
-      setEditingForm(emptyForm);
+      setEditingForm(emptyEditingForm);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -917,6 +928,18 @@ export default function Home() {
                             value={editingForm.notes}
                             onChange={(event) =>
                               updateEditingForm("notes", event.target.value)
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
+                          Ngày tạo
+                          <input
+                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            type="date"
+                            required
+                            value={editingForm.createdAt}
+                            onChange={(event) =>
+                              updateEditingForm("createdAt", event.target.value)
                             }
                           />
                         </label>
