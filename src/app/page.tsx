@@ -25,7 +25,6 @@ type Task = {
   createdAt: string;
 };
 type TaskForm = Omit<Task, "_id" | "createdAt">;
-type EditingTaskForm = TaskForm & { createdAt: string };
 type Settings = {
   category: string[];
   department: string[];
@@ -44,7 +43,6 @@ const emptyForm: TaskForm = {
   status: "",
   notes: "",
 };
-const emptyEditingForm: EditingTaskForm = { ...emptyForm, createdAt: "" };
 const statusLabels: Record<TaskStatus, string> = {
   TODO: "Chưa bắt đầu",
   IN_PROGRESS: "Đang thực hiện",
@@ -79,6 +77,10 @@ function getStatusTone(status: string): StatusTone {
   }
   return "purple";
 }
+
+function isWaitingStatus(status: string) {
+  return status.trim().toLocaleLowerCase("vi") === "đang chờ";
+}
 const emptySettings: Settings = {
   category: [],
   department: [],
@@ -102,24 +104,8 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatDateTimeInput(value: string) {
-  const date = new Date(value);
-  const pad = (part: number) => String(part).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function truncateDescription(value: string) {
   return value.length > 40 ? `${value.slice(0, 37)}...` : value;
-}
-
-function normalizeSearchText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .toLocaleLowerCase("vi");
 }
 
 function dateInputToFilterValue(value: string) {
@@ -180,12 +166,6 @@ function createTaskQuery(
   return params;
 }
 
-async function fetchStatusCounts() {
-  const response = await fetch("/api/tasks/summary");
-  if (!response.ok) throw new Error("summary");
-  return (await response.json()) as Record<string, number>;
-}
-
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [form, setForm] = useState<TaskForm>(emptyForm);
@@ -198,14 +178,11 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<Settings>(emptySettings);
-  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editingForm, setEditingForm] =
-    useState<EditingTaskForm>(emptyEditingForm);
+  const [editingForm, setEditingForm] = useState<TaskForm>(emptyForm);
   const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
-  const [supportPersonSearch, setSupportPersonSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<
     Record<FilterKey, string[]>
   >(emptyFilters);
@@ -242,7 +219,6 @@ export default function Home() {
   }, [activeFilters]);
 
   useEffect(() => {
-    void fetchStatusCounts().then(setStatusCounts).catch(() => undefined);
     fetch("/api/settings")
       .then(async (response) => {
         if (!response.ok) throw new Error("settings");
@@ -327,7 +303,6 @@ export default function Home() {
       workplace: task.workplace,
       status: task.status,
       notes: task.notes,
-      createdAt: formatDateTimeInput(task.createdAt),
     });
   }
 
@@ -350,7 +325,6 @@ export default function Home() {
       if (!response.ok)
         throw new Error(result.error || "Không thể xóa công việc.");
       setTasks((current) => current.filter((task) => task._id !== taskId));
-      void fetchStatusCounts().then(setStatusCounts).catch(() => undefined);
       setDeletingTaskId(null);
     } catch (deleteError) {
       setError(
@@ -366,12 +340,12 @@ export default function Home() {
   function cancelEditing() {
     if (!isSaving) {
       setEditingTaskId(null);
-      setEditingForm(emptyEditingForm);
+      setEditingForm(emptyForm);
       setError("");
     }
   }
 
-  function updateEditingForm(field: keyof EditingTaskForm, value: string) {
+  function updateEditingForm(field: keyof TaskForm, value: string) {
     setEditingForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -391,9 +365,8 @@ export default function Home() {
       setTasks((current) =>
         current.map((task) => (task._id === result._id ? result : task)),
       );
-      void fetchStatusCounts().then(setStatusCounts).catch(() => undefined);
       setEditingTaskId(null);
-      setEditingForm(emptyEditingForm);
+      setEditingForm(emptyForm);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -419,7 +392,6 @@ export default function Home() {
       if (!response.ok)
         throw new Error(result.error || "Không thể lưu công việc.");
       setTasks((current) => [result, ...current]);
-      void fetchStatusCounts().then(setStatusCounts).catch(() => undefined);
       setIsModalOpen(false);
       setForm(emptyForm);
     } catch (saveError) {
@@ -455,7 +427,6 @@ export default function Home() {
   function clearAllFilters() {
     setActiveFilters({ ...emptyFilters });
     setOpenFilter(null);
-    setSupportPersonSearch("");
   }
 
   const filteredTasks = tasks.filter((task) =>
@@ -483,45 +454,41 @@ export default function Home() {
     );
   }
 
+  const visibleStatusCounts = filteredTasks.reduce<Record<StatusTone, number>>(
+    (counts, task) => {
+      counts[getStatusTone(task.status)] += 1;
+      return counts;
+    },
+    { green: 0, yellow: 0, purple: 0, red: 0 },
+  );
+
+  const visibleWaitingCount = filteredTasks.filter((task) =>
+    isWaitingStatus(task.status),
+  ).length;
+
   const statusSummary = [
     {
       tone: "yellow" as const,
       label: "Đang làm",
-      count: Object.entries(statusCounts).reduce(
-        (total, [status, count]) =>
-          total + (getStatusTone(status) === "yellow" ? count : 0),
-        0,
-      ),
+      count: visibleStatusCounts.yellow,
       className: "bg-[#fff4cc] text-[#9a7000]",
     },
     {
       tone: "purple" as const,
       label: "Đang chờ",
-      count: Object.entries(statusCounts).reduce(
-        (total, [status, count]) =>
-          total + (getStatusTone(status) === "purple" ? count : 0),
-        0,
-      ),
+      count: visibleWaitingCount,
       className: "bg-[#f1e7ff] text-[#7c4db3]",
     },
     {
       tone: "red" as const,
       label: "Không cần",
-      count: Object.entries(statusCounts).reduce(
-        (total, [status, count]) =>
-          total + (getStatusTone(status) === "red" ? count : 0),
-        0,
-      ),
+      count: visibleStatusCounts.red,
       className: "bg-[#fae0e0] text-[#bd4c4c]",
     },
     {
       tone: "green" as const,
       label: "Hoàn thành",
-      count: Object.entries(statusCounts).reduce(
-        (total, [status, count]) =>
-          total + (getStatusTone(status) === "green" ? count : 0),
-        0,
-      ),
+      count: visibleStatusCounts.green,
       className: "bg-[#e3f0e9] text-[#28745b]",
     },
   ];
@@ -617,12 +584,9 @@ export default function Home() {
                     className={`inline-flex items-center gap-1 border-0 bg-transparent p-0 text-left text-[12px] font-bold uppercase tracking-[1.2px] transition hover:text-[#28745b] ${activeFilters[key].length ? "text-[#28745b]" : "text-[#727a82]"}`}
                     type="button"
                     aria-expanded={openFilter === key}
-                    onClick={() => {
-                      setOpenFilter((current) =>
-                        current === key ? null : key,
-                      );
-                      if (key === "supportPerson") setSupportPersonSearch("");
-                    }}
+                    onClick={() =>
+                      setOpenFilter((current) => (current === key ? null : key))
+                    }
                   >
                     {label}
                     <FontAwesomeIcon
@@ -664,34 +628,8 @@ export default function Home() {
                           />
                         </label>
                       ) : (
-                        <>
-                          {key === "supportPerson" && (
-                            <input
-                              className="mb-2 w-full border border-[#d9dfe0] bg-[#fafbfa] px-2.5 py-2 text-xs font-normal text-[#20252b] outline-none placeholder:text-[#9aa1a6] focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                              type="search"
-                              value={supportPersonSearch}
-                              onChange={(event) =>
-                                setSupportPersonSearch(event.target.value)
-                              }
-                              placeholder="Tìm người hỗ trợ..."
-                              aria-label="Tìm người cần hỗ trợ"
-                              autoFocus
-                            />
-                          )}
-                          <div
-                            className={`grid gap-1 overflow-y-auto ${key === "supportPerson" ? "max-h-40" : "max-h-52"}`}
-                          >
-                          {getFilterOptions(key)
-                            .filter(
-                              (value) =>
-                                key !== "supportPerson" ||
-                                normalizeSearchText(value).includes(
-                                  normalizeSearchText(
-                                    supportPersonSearch.trim(),
-                                  ),
-                                ),
-                            )
-                            .map((value) => (
+                        <div className="grid max-h-52 gap-1 overflow-y-auto">
+                          {getFilterOptions(key).map((value) => (
                             <label
                               className="flex cursor-pointer items-center gap-2 px-1 py-1.5 text-xs hover:bg-[#f5f7f5]"
                               key={value}
@@ -711,20 +649,7 @@ export default function Home() {
                               </span>
                             </label>
                           ))}
-                          {key === "supportPerson" &&
-                            getFilterOptions(key).filter((value) =>
-                              normalizeSearchText(value).includes(
-                                normalizeSearchText(
-                                  supportPersonSearch.trim(),
-                                ),
-                              ),
-                            ).length === 0 && (
-                              <p className="px-1 py-2 text-xs font-normal text-[#9aa1a6]">
-                                Không tìm thấy người phù hợp
-                              </p>
-                            )}
-                          </div>
-                        </>
+                        </div>
                       )}
                     </div>
                   )}
@@ -992,18 +917,6 @@ export default function Home() {
                             value={editingForm.notes}
                             onChange={(event) =>
                               updateEditingForm("notes", event.target.value)
-                            }
-                          />
-                        </label>
-                        <label className="grid gap-1.5 text-xs font-bold text-[#515a60]">
-                          Ngày giờ tạo
-                          <input
-                            className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                            type="datetime-local"
-                            required
-                            value={editingForm.createdAt}
-                            onChange={(event) =>
-                              updateEditingForm("createdAt", event.target.value)
                             }
                           />
                         </label>

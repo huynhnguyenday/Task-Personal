@@ -237,15 +237,12 @@ export default function SettingsPage() {
           ← Công việc
         </Link>
       </header>
-      <section className="mx-auto max-w-[1440px] pb-[42px] pt-[42px] sm:pt-16">
+      <section className="mx-auto max-w-[1440px] pb-[20px] pt-[20px]">
         <div>
-          <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">
+          <p className="mb-1 text-[15px] font-bold tracking-[1.5px] text-[#28745b]">
             THIẾT LẬP
           </p>
-          <h2 className="text-[clamp(28px,4vw,42px)] tracking-[-1.5px]">
-            Danh mục lựa chọn
-          </h2>
-          <p className="mt-2.5 text-sm text-[#727a82]">
+          <p className="mt-1 text-sm text-[#727a82]">
             Quản lý các giá trị sẽ xuất hiện trong biểu mẫu thêm công việc.
           </p>
         </div>
@@ -258,10 +255,10 @@ export default function SettingsPage() {
       <section className="mx-auto grid max-w-[1440px] gap-3.5 min-[761px]:grid-cols-2 min-[1024px]:grid-cols-3">
         {sections.map((section) => (
           <article
-            className="min-h-[270px] border border-[#e3e7e9] bg-white p-[22px]"
+            className="flex h-[350px] flex-col overflow-hidden border border-[#e3e7e9] bg-white p-[22px]"
             key={section.type}
           >
-            <div className="flex items-start justify-between gap-2.5 border-b border-[#e3e7e9] pb-[18px]">
+            <div className="flex shrink-0 items-start justify-between gap-2.5 border-b border-[#e3e7e9] pb-[18px]">
               <div>
                 <h3 className="text-lg leading-[1.4]">{section.title}</h3>
                 <p className="mt-1.5 text-xs leading-[1.5] text-[#727a82]">
@@ -278,7 +275,10 @@ export default function SettingsPage() {
               </button>
             </div>
             {activeType === section.type && (
-              <form className="my-4 flex gap-[7px]" onSubmit={handleSubmit}>
+              <form
+                className="my-4 flex shrink-0 gap-[7px]"
+                onSubmit={handleSubmit}
+              >
                 <input
                   className="min-w-0 flex-1 border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
                   autoFocus
@@ -296,6 +296,7 @@ export default function SettingsPage() {
                 </button>
               </form>
             )}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {isLoading ? (
               <p className="mt-6 text-xs text-[#9aa1a4]">Đang tải...</p>
             ) : settings[section.type].length ? (
@@ -403,6 +404,7 @@ export default function SettingsPage() {
             {error && activeType === section.type && (
               <p className="mt-3.5 text-[13px] text-[#a34646]">{error}</p>
             )}
+            </div>
           </article>
         ))}
       </section>
