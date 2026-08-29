@@ -214,15 +214,8 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
-      <header className="mx-auto flex max-w-[1440px] items-start justify-between gap-5 border-b border-[#e3e7e9] pb-7 sm:items-center">
+      <header className="mx-auto max-w-[1440px] border-b border-[#e3e7e9] pb-7">
         <div className="flex items-center gap-3.5">
-          <Link
-            className="grid h-[42px] w-[42px] rotate-[-6deg] place-items-center bg-[#28745b] text-[21px] font-bold text-white"
-            href="/"
-            aria-label="Về trang công việc"
-          >
-            T
-          </Link>
           <div>
             <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">
               PERSONAL WORKSPACE
@@ -230,12 +223,6 @@ export default function SettingsPage() {
             <h1 className="text-xl tracking-[-0.4px]">Cấu hình workspace</h1>
           </div>
         </div>
-        <Link
-          className="text-xs font-bold text-[#727a82] no-underline transition hover:text-[#28745b]"
-          href="/"
-        >
-          ← Công việc
-        </Link>
       </header>
       <section className="mx-auto max-w-[1440px] pb-[20px] pt-[20px]">
         <div>
@@ -297,113 +284,115 @@ export default function SettingsPage() {
               </form>
             )}
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            {isLoading ? (
-              <p className="mt-6 text-xs text-[#9aa1a4]">Đang tải...</p>
-            ) : settings[section.type].length ? (
-              <ul className="mt-[17px] grid list-none gap-2 p-0">
-                {settings[section.type].map((item, index) => (
-                  <li
-                    className={`flex items-center gap-2 px-[11px] py-[9px] text-[13px] transition-[height] duration-200 ${deletingItem?.type === section.type && deletingItem.index === index ? "min-h-12 bg-[#fae0e0] text-[#a34646]" : "bg-[#f5f7f5] text-[#515a60]"} ${editingItem?.type === section.type && editingItem.index === index ? "h-20" : "min-h-10"}`}
-                    key={item}
-                  >
-                    {deletingItem?.type === section.type &&
-                    deletingItem.index === index ? (
-                      <>
-                        <span className="min-w-0 flex-1 truncate font-bold">
-                          Xóa “{item}”?
-                        </span>
-                        <div className="flex shrink-0 gap-1">
+              {isLoading ? (
+                <p className="mt-6 text-xs text-[#9aa1a4]">Đang tải...</p>
+              ) : settings[section.type].length ? (
+                <ul className="mt-[17px] grid list-none gap-2 p-0">
+                  {settings[section.type].map((item, index) => (
+                    <li
+                      className={`flex items-center gap-2 px-[11px] py-[9px] text-[13px] transition-[height] duration-200 ${deletingItem?.type === section.type && deletingItem.index === index ? "min-h-12 bg-[#fae0e0] text-[#a34646]" : "bg-[#f5f7f5] text-[#515a60]"} ${editingItem?.type === section.type && editingItem.index === index ? "h-20" : "min-h-10"}`}
+                      key={item}
+                    >
+                      {deletingItem?.type === section.type &&
+                      deletingItem.index === index ? (
+                        <>
+                          <span className="min-w-0 flex-1 truncate font-bold">
+                            Xóa “{item}”?
+                          </span>
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              className="grid h-8 w-8 place-items-center border-0 bg-[#bd4c4c] text-white transition hover:bg-[#a34646] disabled:cursor-wait disabled:opacity-60"
+                              type="button"
+                              aria-label={`Đồng ý xóa ${item}`}
+                              title="Đồng ý xóa"
+                              disabled={isDeleting}
+                              onClick={() => void deleteSetting()}
+                            >
+                              <FontAwesomeIcon icon={faCheck} />
+                            </button>
+                            <button
+                              className="grid h-8 w-8 place-items-center border-0 bg-white text-[#727a82] transition hover:text-[#20252b] disabled:opacity-60"
+                              type="button"
+                              aria-label="Hủy xóa"
+                              title="Hủy"
+                              disabled={isDeleting}
+                              onClick={() => setDeletingItem(null)}
+                            >
+                              <FontAwesomeIcon icon={faXmark} />
+                            </button>
+                          </div>
+                        </>
+                      ) : editingItem?.type === section.type &&
+                        editingItem.index === index ? (
+                        <>
+                          <input
+                            autoFocus
+                            className="min-w-0 flex-1 self-stretch border border-[#d9dfe0] bg-white px-2.5 text-[13px] text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                            value={editingName}
+                            onChange={(event) =>
+                              setEditingName(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") void saveEdit();
+                              if (event.key === "Escape") cancelEditing();
+                            }}
+                          />
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              className="grid h-8 w-8 place-items-center border border-[#28745b] bg-[#28745b] text-base text-white hover:bg-[#1e604a] disabled:opacity-60"
+                              type="button"
+                              aria-label="Lưu thay đổi"
+                              onClick={() => void saveEdit()}
+                              disabled={isSaving}
+                            >
+                              <FontAwesomeIcon icon={faCheck} />
+                            </button>
+                            <button
+                              className="grid h-8 w-8 place-items-center border border-[#d9dfe0] bg-white text-base text-[#727a82] hover:border-[#a34646] hover:text-[#a34646]"
+                              type="button"
+                              aria-label="Hủy chỉnh sửa"
+                              onClick={cancelEditing}
+                              disabled={isSaving}
+                            >
+                              <FontAwesomeIcon icon={faXmark} />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="min-w-0 flex-1">{item}</span>
                           <button
-                            className="grid h-8 w-8 place-items-center border-0 bg-[#bd4c4c] text-white transition hover:bg-[#a34646] disabled:cursor-wait disabled:opacity-60"
+                            className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#e3f0e9] hover:text-[#28745b]"
                             type="button"
-                            aria-label={`Đồng ý xóa ${item}`}
-                            title="Đồng ý xóa"
-                            disabled={isDeleting}
-                            onClick={() => void deleteSetting()}
+                            aria-label={`Sửa ${item}`}
+                            onClick={() =>
+                              startEditing(section.type, index, item)
+                            }
                           >
-                            <FontAwesomeIcon icon={faCheck} />
+                            <FontAwesomeIcon icon={faPencil} />
                           </button>
                           <button
-                            className="grid h-8 w-8 place-items-center border-0 bg-white text-[#727a82] transition hover:text-[#20252b] disabled:opacity-60"
+                            className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#fae0e0] hover:text-[#bd4c4c]"
                             type="button"
-                            aria-label="Hủy xóa"
-                            title="Hủy"
-                            disabled={isDeleting}
-                            onClick={() => setDeletingItem(null)}
+                            aria-label={`Xóa ${item}`}
+                            title="Xóa"
+                            onClick={() => askToDelete(section.type, index)}
                           >
-                            <FontAwesomeIcon icon={faXmark} />
+                            <FontAwesomeIcon icon={faTrashCan} />
                           </button>
-                        </div>
-                      </>
-                    ) : editingItem?.type === section.type &&
-                    editingItem.index === index ? (
-                      <>
-                        <input
-                          autoFocus
-                          className="min-w-0 flex-1 self-stretch border border-[#d9dfe0] bg-white px-2.5 text-[13px] text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                          value={editingName}
-                          onChange={(event) =>
-                            setEditingName(event.target.value)
-                          }
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") void saveEdit();
-                            if (event.key === "Escape") cancelEditing();
-                          }}
-                        />
-                        <div className="flex shrink-0 gap-1">
-                          <button
-                            className="grid h-8 w-8 place-items-center border border-[#28745b] bg-[#28745b] text-base text-white hover:bg-[#1e604a] disabled:opacity-60"
-                            type="button"
-                            aria-label="Lưu thay đổi"
-                            onClick={() => void saveEdit()}
-                            disabled={isSaving}
-                          >
-                            <FontAwesomeIcon icon={faCheck} />
-                          </button>
-                          <button
-                            className="grid h-8 w-8 place-items-center border border-[#d9dfe0] bg-white text-base text-[#727a82] hover:border-[#a34646] hover:text-[#a34646]"
-                            type="button"
-                            aria-label="Hủy chỉnh sửa"
-                            onClick={cancelEditing}
-                            disabled={isSaving}
-                          >
-                            <FontAwesomeIcon icon={faXmark} />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span className="min-w-0 flex-1">{item}</span>
-                        <button
-                          className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#e3f0e9] hover:text-[#28745b]"
-                          type="button"
-                          aria-label={`Sửa ${item}`}
-                          onClick={() =>
-                            startEditing(section.type, index, item)
-                          }
-                        >
-                          <FontAwesomeIcon icon={faPencil} />
-                        </button>
-                        <button
-                          className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#fae0e0] hover:text-[#bd4c4c]"
-                          type="button"
-                          aria-label={`Xóa ${item}`}
-                          title="Xóa"
-                          onClick={() => askToDelete(section.type, index)}
-                        >
-                          <FontAwesomeIcon icon={faTrashCan} />
-                        </button>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-6 text-xs text-[#9aa1a4]">Chưa có giá trị nào</p>
-            )}
-            {error && activeType === section.type && (
-              <p className="mt-3.5 text-[13px] text-[#a34646]">{error}</p>
-            )}
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-6 text-xs text-[#9aa1a4]">
+                  Chưa có giá trị nào
+                </p>
+              )}
+              {error && activeType === section.type && (
+                <p className="mt-3.5 text-[13px] text-[#a34646]">{error}</p>
+              )}
             </div>
           </article>
         ))}

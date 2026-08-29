@@ -518,19 +518,6 @@ export default function Home() {
             <h1 className="text-xl tracking-[-0.4px]">Task board</h1>
           </div>
         </div>
-        <a
-          className="ml-auto inline-flex h-[42px] w-[42px] items-center justify-center rounded-[10px] border border-[#28745b] bg-[#e3f0e9] text-[#727a82] shadow-[0_4px_12px_#27382d0a] transition hover:-translate-y-0.5 hover:border-[#28745b] hover:bg-white hover:text-[#28745b] hover:shadow-[0_7px_16px_#27382d16] focus-visible:outline-2 focus-visible:outline-[#28745b] focus-visible:outline-offset-2"
-          href="/setting"
-          aria-label="Mở cài đặt"
-          title="Cài đặt"
-        >
-          <span
-            className="grid h-6 w-6 place-items-center rounded-full bg-white text-[15px] leading-none transition hover:rotate-[25deg] hover:bg-[#28745b] hover:text-white"
-            aria-hidden="true"
-          >
-            ⚙
-          </span>
-        </a>
       </header>
       <section className="mx-auto flex max-w-[1440px] flex-col gap-6 pb-[30px] pt-3 lg:flex-row lg:items-center lg:gap-8">
         <div className="shrink-0 lg:w-[260px]">
