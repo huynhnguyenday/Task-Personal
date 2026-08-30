@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ComparisonCard from "./ComparisonCard";
-import { TODAY, useWorkloadMetric } from "./useWorkloadMetric";
+import { getToday, useWorkloadMetric } from "./useWorkloadMetric";
 
 export default function DailyComparisonCard() {
-  const [date, setDate] = useState(TODAY);
+  const [date, setDate] = useState("");
+  useEffect(() => { const frame = requestAnimationFrame(() => setDate(getToday())); return () => cancelAnimationFrame(frame); }, []);
   const metric = useWorkloadMetric("daily", date);
-  return <ComparisonCard label="So với TB mỗi ngày" ratio date={date} onDateChange={(value) => { metric.reload(); setDate(value); }} {...metric} />;
+  return <ComparisonCard label="So với TB mỗi ngày" ratio fallbackDate={getToday()} date={date} onDateChange={(value) => { metric.reload(); setDate(value); }} {...metric} />;
 }

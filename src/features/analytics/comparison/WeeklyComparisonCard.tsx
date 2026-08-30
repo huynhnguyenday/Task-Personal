@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ComparisonCard from "./ComparisonCard";
-import { RECORDING_START, TODAY, useWorkloadMetric } from "./useWorkloadMetric";
+import { getToday, RECORDING_START, useWorkloadMetric } from "./useWorkloadMetric";
 
 function toWeekValue(dateKey: string) {
   const date = new Date(`${dateKey}T12:00:00Z`);
@@ -21,8 +21,10 @@ function weekToMonday(weekValue: string) {
 }
 
 export default function WeeklyComparisonCard() {
-  const [week, setWeek] = useState(toWeekValue(TODAY));
-  const monday = weekToMonday(week);
-  const metric = useWorkloadMetric("weekly", monday < RECORDING_START ? RECORDING_START : monday);
-  return <ComparisonCard label="So với TB mỗi tuần" ratio pickerType="week" min={toWeekValue(RECORDING_START)} date={week} onDateChange={(value) => { metric.reload(); setWeek(value); }} {...metric} />;
+  const [week, setWeek] = useState("");
+  useEffect(() => { const frame = requestAnimationFrame(() => setWeek(toWeekValue(getToday()))); return () => cancelAnimationFrame(frame); }, []);
+  const monday = week ? weekToMonday(week) : "";
+  const metricDate = monday && monday < RECORDING_START ? RECORDING_START : monday;
+  const metric = useWorkloadMetric("weekly", metricDate);
+  return <ComparisonCard label="So với TB mỗi tuần" ratio pickerType="week" min={toWeekValue(RECORDING_START)} fallbackDate={toWeekValue(getToday())} date={week} onDateChange={(value) => { metric.reload(); setWeek(value); }} {...metric} />;
 }

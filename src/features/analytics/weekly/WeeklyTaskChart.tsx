@@ -15,18 +15,17 @@ function formatLocalDate(date: Date) {
 }
 
 function initialRange() {
-  const today = new Date();
+  const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  const today = new Date(`${todayKey}T12:00:00Z`);
   const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-  return { from: formatLocalDate(monday), to: formatLocalDate(today) };
+  monday.setUTCDate(today.getUTCDate() - ((today.getUTCDay() + 6) % 7));
+  return { from: formatLocalDate(monday), to: todayKey };
 }
 
-const defaultRange = initialRange();
-
 export default function WeeklyTaskChart() {
-  const [from, setFrom] = useState(defaultRange.from);
-  const [to, setTo] = useState(defaultRange.to);
-  const [appliedRange, setAppliedRange] = useState(defaultRange);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
   const [data, setData] = useState<WeeklyDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,6 +41,17 @@ export default function WeeklyTaskChart() {
   const showValuesRef = useRef(showValues);
 
   useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const range = initialRange();
+      setFrom(range.from);
+      setTo(range.to);
+      setAppliedRange(range);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!appliedRange) return;
     const controller = new AbortController();
     fetch(`/api/analytics/weekly?from=${appliedRange.from}&to=${appliedRange.to}`, { signal: controller.signal })
       .then(async (response) => {
@@ -59,6 +69,7 @@ export default function WeeklyTaskChart() {
 
   function applyFilter(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!from || !to) return;
     if (from > to) return setError("Ngày bắt đầu phải trước ngày kết thúc.");
     const days = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000) + 1;
     if (days > 31) return setError("Vui lòng chọn tối đa 31 ngày.");

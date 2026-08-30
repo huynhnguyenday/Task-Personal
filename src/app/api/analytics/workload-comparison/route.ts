@@ -11,9 +11,10 @@ const DAY = 86_400_000;
 function boundary(value: string) { return new Date(`${value}T00:00:00+07:00`); }
 function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 function later(first: Date, second: Date) { return first > second ? first : second; }
-function percent(current: number, history: number, periods: number) {
+function ratioPercent(current: number, history: number, periods: number) {
   const average = periods > 0 ? history / periods : 0;
-  return average > 0 ? Math.round(((current - average) / average) * 100) : current;
+  if (current === 0) return 0;
+  return average > 0 ? Math.round((current / average) * 100) : 100;
 }
 
 function monthRange(value: string) {
@@ -43,11 +44,12 @@ export async function GET(request: Request) {
     await connectToDatabase();
     if (metric === "total" || metric === "monthly") {
       const range = monthRange(date);
+      const now = new Date();
       const [current, history] = await Promise.all([
-        Task.countDocuments({ createdAt: { $gte: later(range.start, RECORDING_START), $lt: range.end } }),
+        Task.countDocuments({ createdAt: { $gte: later(range.start, RECORDING_START), $lt: range.end, $lte: now } }),
         Task.countDocuments({ createdAt: { $gte: RECORDING_START, $lt: range.start } }),
       ]);
-      return NextResponse.json({ value: metric === "total" ? current : percent(current, history, range.periods) });
+      return NextResponse.json({ value: metric === "total" ? current : ratioPercent(current, history, range.periods) });
     }
     if (metric === "weekly") {
       const range = weekRange(date);
