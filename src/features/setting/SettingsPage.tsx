@@ -213,7 +213,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
+    <main className="scrollbar-settings min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
       <header className="mx-auto max-w-[1440px] border-b border-[#e3e7e9] pb-7">
         <div className="flex items-center gap-3.5">
           <div>

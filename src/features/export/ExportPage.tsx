@@ -109,7 +109,7 @@ export default function ExportPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-4 py-8 text-[#20252b]">
+    <main className="scrollbar-settings min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-4 py-8 text-[#20252b]">
       <header className="mx-auto max-w-[1440px] border-b border-[#e3e7e9] pb-7 pl-14 sm:pl-0">
         <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">PERSONAL WORKSPACE</p>
         <h1 className="text-2xl tracking-[-0.4px]">Xuất dữ liệu</h1>

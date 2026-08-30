@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRight,
+  faChartColumn,
   faFileExport,
   faGear,
   faListCheck,
@@ -13,6 +14,12 @@ const workspaceRoutes = [
     title: "Công việc",
     description: "Theo dõi, thêm mới và cập nhật tiến độ công việc hằng ngày.",
     icon: faListCheck,
+  },
+  {
+    href: "/analytics",
+    title: "Phân tích công việc",
+    description: "Theo dõi số lượng task, trạng thái và nhu cầu hỗ trợ trong tháng.",
+    icon: faChartColumn,
   },
   {
     href: "/export",
@@ -46,7 +53,7 @@ export default function MainPage() {
         </header>
 
         <section
-          className="mt-8 grid gap-4 md:grid-cols-3"
+          className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
           aria-label="Chức năng chính"
         >
           {workspaceRoutes.map((route, index) => (

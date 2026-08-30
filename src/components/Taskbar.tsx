@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faFileExport, faGear, faHouse, faListCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faChartColumn, faFileExport, faGear, faHouse, faListCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState } from "react";
 
 const navigation = [
   { href: "/", label: "Trang chính", icon: faHouse },
   { href: "/task", label: "Công việc", icon: faListCheck },
+  { href: "/analytics", label: "Phân tích", icon: faChartColumn },
   { href: "/export", label: "Xuất dữ liệu", icon: faFileExport },
   { href: "/setting", label: "Cấu hình", icon: faGear },
 ];

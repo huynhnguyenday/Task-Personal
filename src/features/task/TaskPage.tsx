@@ -511,7 +511,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="h-screen overflow-hidden bg-[#fff] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
+    <main className="scrollbar-task h-screen overflow-hidden bg-[#fff] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
       <header className="relative mx-auto flex max-w-[1440px] items-start justify-between gap-5 border-b border-[#e3e7e9] pb-7 sm:items-center">
         <div className="flex items-center gap-3.5">
           <span className="grid h-[42px] w-[42px] rotate-[-6deg] place-items-center bg-[#28745b] text-[21px] font-bold text-white">
