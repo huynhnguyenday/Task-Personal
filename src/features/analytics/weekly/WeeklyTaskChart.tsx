@@ -199,7 +199,7 @@ export default function WeeklyTaskChart() {
   }
 
   return (
-    <article className="flex min-h-0 flex-col border border-[#e3e7e9] bg-white p-4 sm:p-5">
+    <article className="flex min-h-0 flex-col border border-[#e3e7e9] bg-white p-3.5 sm:p-4">
       <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div><p className="text-[10px] font-bold tracking-[1.4px] text-[#28745b]">THEO KHOẢNG NGÀY</p><h2 className="mt-1 text-lg font-semibold">Số lượng task</h2></div>
         <form className="flex flex-wrap items-end gap-2" onSubmit={applyFilter}>
@@ -210,7 +210,7 @@ export default function WeeklyTaskChart() {
         </form>
       </div>
       {error && <p className="mt-2 text-xs text-[#a34646]">{error}</p>}
-      <div className="mt-3 min-h-[190px] min-w-0 flex-1 overflow-visible">
+      <div className="mt-2 min-h-[120px] min-w-0 flex-1 overflow-visible">
         {loading ? <div className="flex h-full items-end gap-4 overflow-hidden">{Array.from({ length: 7 }).map((_, index) => <Skeleton key={index} className="min-h-12 min-w-0 flex-1" width={`${48 + index * 6}%`} />)}</div> : (
           <div className="relative h-full min-w-0 overflow-visible"><Line ref={chartRef} plugins={[valueLabels]} data={chartData} options={{ responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", intersect: true }, animation: { duration: 650 }, layout: { padding: { top: 18 } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: renderTooltip } }, scales: { x: { title: { display: true, text: "Ngày", color: "#727a82" }, grid: { display: false }, ticks: { color: "#727a82", maxTicksLimit: 16 } }, y: { beginAtZero: true, suggestedMax: Math.max(...data.map((day) => day.count), 1) + 1, ticks: { precision: 0, color: "#727a82" }, grid: { color: "#edf0ee" } } } }} /><div ref={tooltipRef} className="pointer-events-none absolute z-20 h-[245px] w-[300px] overflow-hidden rounded-lg bg-[#173f33] text-white opacity-0 shadow-[0_16px_40px_rgba(20,35,29,0.32)] transition-opacity" onMouseEnter={() => { isTooltipHovered.current = true; if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current); if (activePointIndex.current !== null) { chartRef.current?.setActiveElements([{ datasetIndex: 0, index: activePointIndex.current }]); animateActivePoint(1); } }} onMouseLeave={(event) => { isTooltipHovered.current = false; chartRef.current?.setActiveElements([]); animateActivePoint(0, true); event.currentTarget.style.opacity = "0"; event.currentTarget.style.pointerEvents = "none"; }} /></div>
         )}

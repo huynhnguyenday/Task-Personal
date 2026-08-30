@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import ComparisonCard from "./ComparisonCard";
-import { TODAY, useWorkloadMetric } from "./useWorkloadMetric";
+import { RECORDING_START, TODAY, useWorkloadMetric } from "./useWorkloadMetric";
 
 export default function MonthlyComparisonCard() {
-  const [date, setDate] = useState(TODAY);
-  const metric = useWorkloadMetric("monthly", date);
-  return <ComparisonCard label="So với TB tháng" date={date} onDateChange={(value) => { metric.reload(); setDate(value); }} {...metric} />;
+  const [month, setMonth] = useState(TODAY.slice(0, 7));
+  const metricDate = month === RECORDING_START.slice(0, 7) ? RECORDING_START : `${month}-01`;
+  const metric = useWorkloadMetric("monthly", metricDate);
+  return <ComparisonCard label="So với TB tháng" pickerType="month" min={RECORDING_START.slice(0, 7)} date={month} onDateChange={(value) => { metric.reload(); setMonth(value); }} {...metric} />;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Task } from "@/models/Task";
+import { getElapsedCalendarPeriods } from "@/lib/analyticsDates";
 
 export const runtime = "nodejs";
 const RECORDING_START_KEY = "2026-08-14";
@@ -50,19 +51,25 @@ export async function GET(request: Request) {
     }
     if (metric === "weekly") {
       const range = weekRange(date);
-      const [current, history] = await Promise.all([
+      const [current, total, firstTask] = await Promise.all([
         Task.countDocuments({ createdAt: { $gte: later(range.start, RECORDING_START), $lt: range.end } }),
-        Task.countDocuments({ createdAt: { $gte: RECORDING_START, $lt: range.start } }),
+        Task.countDocuments(),
+        Task.findOne().sort({ createdAt: 1 }).select({ createdAt: 1 }).lean(),
       ]);
-      return NextResponse.json({ value: percent(current, history, range.periods) });
+      if (!firstTask || total === 0) return NextResponse.json({ value: 0 });
+      const weeklyAverage = total / getElapsedCalendarPeriods(new Date(firstTask.createdAt)).weeks;
+      return NextResponse.json({ value: Math.round((current / weeklyAverage) * 100) });
     }
     const start = boundary(date);
-    const periods = Math.max(0, (start.getTime() - RECORDING_START.getTime()) / DAY);
-    const [current, history] = await Promise.all([
+    const [current, activeDays] = await Promise.all([
       Task.countDocuments({ createdAt: { $gte: start, $lt: new Date(start.getTime() + DAY) } }),
-      Task.countDocuments({ createdAt: { $gte: RECORDING_START, $lt: start } }),
+      Task.aggregate<{ count: number }>([
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Ho_Chi_Minh" } }, count: { $sum: 1 } } },
+      ]),
     ]);
-    return NextResponse.json({ value: percent(current, history, periods) });
+    const totalOnWorkingDays = activeDays.reduce((sum, day) => sum + day.count, 0);
+    const dailyAverage = activeDays.length ? totalOnWorkingDays / activeDays.length : 0;
+    return NextResponse.json({ value: dailyAverage > 0 ? Math.round((current / dailyAverage) * 100) : 0 });
   } catch {
     return NextResponse.json({ error: "Không thể tải chỉ số công việc" }, { status: 500 });
   }

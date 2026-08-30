@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MonthlyStatusCards from "./MonthlyStatusCards";
-import TopSupportersTable from "./TopSupportersTable";
-import WeeklyTaskChart from "./WeeklyTaskChart";
+import MonthlyStatusCards from "./monthly-status/MonthlyStatusCards";
+import TopSupportersTable from "./supporters/TopSupportersTable";
+import WeeklyTaskChart from "./weekly/WeeklyTaskChart";
 import WorkloadComparisonCards from "./comparison/WorkloadComparisonCards";
-import type { MonthlyStatus, Supporter } from "./types";
+import OverallSummaryCards from "./overview/OverallSummaryCards";
+import type { MonthlyStatus } from "./monthly-status/types";
+import type { Supporter } from "./supporters/types";
 
 export default function AnalyticsPage() {
   const [supporters, setSupporters] = useState<Supporter[]>([]);
@@ -32,11 +34,14 @@ export default function AnalyticsPage() {
       </header>
       <div className="mx-auto mt-4 flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-3">
         {error && <p className="shrink-0 text-xs text-[#a34646]">{error}</p>}
-        <WorkloadComparisonCards />
-        <section className="grid min-h-0 flex-1 auto-rows-[590px] gap-3 overflow-y-auto lg:grid-cols-[1.45fr_1fr] lg:auto-rows-max">
+        <div className="grid shrink-0 grid-cols-2 gap-2.5 lg:grid-cols-6 lg:grid-rows-2">
+          <MonthlyStatusCards data={monthly} loading={loading} className="grid grid-cols-2 gap-2.5 lg:col-span-2 lg:row-span-2 lg:grid-rows-2" />
+          <OverallSummaryCards className="contents" />
+          <WorkloadComparisonCards className="contents" />
+        </div>
+        <section className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[1.45fr_1fr] lg:grid-rows-[minmax(0,1fr)]">
           <WeeklyTaskChart />
-          <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-            <MonthlyStatusCards data={monthly} loading={loading} />
+          <aside className="h-full min-h-0">
             <TopSupportersTable data={supporters} loading={loading} />
           </aside>
         </section>
