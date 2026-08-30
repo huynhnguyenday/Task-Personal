@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import { CategoryScale, Chart as ChartJS, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip, type Plugin, type TooltipModel } from "chart.js";
 import { Skeleton } from "@/components/LoadingSkeleton";
-import TaskDetailModal from "./TaskDetailModal";
+import TaskDetailModal from "../shared/TaskDetailModal";
 import type { WeeklyDay, WeeklyTask } from "./types";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
@@ -168,7 +168,7 @@ export default function WeeklyTaskChart() {
     list.className = "scrollbar-tooltip grid h-[176px] content-start gap-2 overflow-y-auto p-3";
     if (!day.tasks.length) {
       const empty = document.createElement("p");
-      empty.className = "m-0 py-12 text-center text-xs text-white/60";
+      empty.className = "m-0 py-12 text-center text-xs font-semibold text-white/85";
       empty.textContent = "Không có task trong ngày này";
       list.append(empty);
     } else {
@@ -181,7 +181,7 @@ export default function WeeklyTaskChart() {
         description.className = "m-0 line-clamp-2 text-xs font-semibold leading-4";
         description.textContent = `${taskIndex + 1}. ${task.description}`;
         const person = document.createElement("p");
-        person.className = "m-0 mt-1 truncate text-[10px] text-white/60";
+        person.className = "m-0 mt-1 truncate text-[10px] font-semibold text-white/85";
         person.textContent = `Người hỗ trợ: ${task.supportPerson}`;
         item.append(description, person);
         list.append(item);
@@ -203,9 +203,9 @@ export default function WeeklyTaskChart() {
       <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div><p className="text-[10px] font-bold tracking-[1.4px] text-[#28745b]">THEO KHOẢNG NGÀY</p><h2 className="mt-1 text-lg font-semibold">Số lượng task</h2></div>
         <form className="flex flex-wrap items-end gap-2" onSubmit={applyFilter}>
-          <button className={`h-9 border px-3 text-xs font-bold transition ${showValues ? "border-[#28745b] bg-[#e3f0e9] text-[#28745b]" : "border-[#d9dfe0] bg-white text-[#727a82]"}`} type="button" aria-pressed={showValues} onClick={toggleValues}>{showValues ? "Ẩn số" : "Hiện số"}</button>
-          <label className="grid gap-1 text-[10px] font-bold text-[#727a82]">TỪ NGÀY<input className="h-9 border border-[#d9dfe0] bg-[#fafbfa] px-2 text-xs outline-none focus:border-[#28745b]" type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} required /></label>
-          <label className="grid gap-1 text-[10px] font-bold text-[#727a82]">ĐẾN NGÀY<input className="h-9 border border-[#d9dfe0] bg-[#fafbfa] px-2 text-xs outline-none focus:border-[#28745b]" type="date" value={to} min={from} onChange={(event) => setTo(event.target.value)} required /></label>
+          <button className={`h-9 border px-3 text-xs font-bold transition ${showValues ? "border-[#28745b] bg-[#e3f0e9] text-[#28745b]" : "border-[#d9dfe0] bg-white text-[#515a60]"}`} type="button" aria-pressed={showValues} onClick={toggleValues}>{showValues ? "Ẩn số" : "Hiện số"}</button>
+          <label className="grid gap-1 text-[10px] font-bold text-[#515a60]">TỪ NGÀY<input className="h-9 border border-[#d9dfe0] bg-[#fafbfa] px-2 text-xs font-semibold outline-none focus:border-[#28745b]" type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} required /></label>
+          <label className="grid gap-1 text-[10px] font-bold text-[#515a60]">ĐẾN NGÀY<input className="h-9 border border-[#d9dfe0] bg-[#fafbfa] px-2 text-xs font-semibold outline-none focus:border-[#28745b]" type="date" value={to} min={from} onChange={(event) => setTo(event.target.value)} required /></label>
           <button className="h-9 bg-[#28745b] px-3 text-xs font-bold text-white transition hover:bg-[#1e604a] disabled:opacity-60" type="submit" disabled={loading}>Áp dụng</button>
         </form>
       </div>
@@ -215,7 +215,7 @@ export default function WeeklyTaskChart() {
           <div className="relative h-full min-w-0 overflow-visible"><Line ref={chartRef} plugins={[valueLabels]} data={chartData} options={{ responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", intersect: true }, animation: { duration: 650 }, layout: { padding: { top: 18 } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: renderTooltip } }, scales: { x: { title: { display: true, text: "Ngày", color: "#727a82" }, grid: { display: false }, ticks: { color: "#727a82", maxTicksLimit: 16 } }, y: { beginAtZero: true, suggestedMax: Math.max(...data.map((day) => day.count), 1) + 1, ticks: { precision: 0, color: "#727a82" }, grid: { color: "#edf0ee" } } } }} /><div ref={tooltipRef} className="pointer-events-none absolute z-20 h-[245px] w-[300px] overflow-hidden rounded-lg bg-[#173f33] text-white opacity-0 shadow-[0_16px_40px_rgba(20,35,29,0.32)] transition-opacity" onMouseEnter={() => { isTooltipHovered.current = true; if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current); if (activePointIndex.current !== null) { chartRef.current?.setActiveElements([{ datasetIndex: 0, index: activePointIndex.current }]); animateActivePoint(1); } }} onMouseLeave={(event) => { isTooltipHovered.current = false; chartRef.current?.setActiveElements([]); animateActivePoint(0, true); event.currentTarget.style.opacity = "0"; event.currentTarget.style.pointerEvents = "none"; }} /></div>
         )}
       </div>
-      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} onTaskUpdated={(updatedTask) => { setData((current) => current.map((day) => ({ ...day, tasks: day.tasks.map((task) => task.id === updatedTask.id ? updatedTask : task) }))); setSelectedTask(updatedTask); }} />
     </article>
   );
 }
