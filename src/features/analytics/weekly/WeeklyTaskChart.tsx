@@ -219,7 +219,7 @@ export default function WeeklyTaskChart() {
   }
 
   return (
-    <article className="flex min-h-0 flex-col border border-[#e3e7e9] bg-white p-3.5 sm:p-4">
+    <article className="flex h-full min-h-0 flex-col border border-[#e3e7e9] bg-white p-3.5 sm:p-4">
       <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div><p className="text-[10px] font-bold tracking-[1.4px] text-[#28745b]">THEO KHOẢNG NGÀY</p><h2 className="mt-1 text-lg font-semibold">Số lượng task</h2></div>
         <form className="flex flex-wrap items-end gap-2" onSubmit={applyFilter}>
