@@ -61,6 +61,17 @@ export async function GET(request: Request) {
     const tasks = await Task.find(query)
       .sort({ createdAt: -1, _id: -1 })
       .limit(TASKS_PER_PAGE + 1)
+      .select({
+        description: 1,
+        supportPerson: 1,
+        category: 1,
+        department: 1,
+        company: 1,
+        workplace: 1,
+        status: 1,
+        notes: 1,
+        createdAt: 1,
+      })
       .lean();
     const hasMore = tasks.length > TASKS_PER_PAGE;
     const pageTasks = tasks.slice(0, TASKS_PER_PAGE);

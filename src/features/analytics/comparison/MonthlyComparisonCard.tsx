@@ -9,5 +9,5 @@ export default function MonthlyComparisonCard() {
   useEffect(() => { const frame = requestAnimationFrame(() => setMonth(getToday().slice(0, 7))); return () => cancelAnimationFrame(frame); }, []);
   const metricDate = !month ? "" : month === RECORDING_START.slice(0, 7) ? RECORDING_START : `${month}-01`;
   const metric = useWorkloadMetric("monthly", metricDate);
-  return <ComparisonCard label="So với TB tháng" ratio pickerType="month" min={RECORDING_START.slice(0, 7)} fallbackDate={getToday().slice(0, 7)} date={month} onDateChange={(value) => { metric.reload(); setMonth(value); }} {...metric} />;
+  return <ComparisonCard label="So với TB tháng" ratio pickerType="month" min={RECORDING_START.slice(0, 7)} fallbackDate={getToday().slice(0, 7)} date={month} onDateChange={setMonth} {...metric} />;
 }

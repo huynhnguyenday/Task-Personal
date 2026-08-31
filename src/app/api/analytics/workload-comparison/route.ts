@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Task } from "@/models/Task";
 import { getElapsedCalendarPeriods } from "@/lib/analyticsDates";
+import { getAnalyticsSnapshot } from "@/lib/analyticsSnapshot";
 
 export const runtime = "nodejs";
 const RECORDING_START_KEY = "2026-08-14";
@@ -53,24 +54,20 @@ export async function GET(request: Request) {
     }
     if (metric === "weekly") {
       const range = weekRange(date);
-      const [current, total, firstTask] = await Promise.all([
+      const [current, snapshot] = await Promise.all([
         Task.countDocuments({ createdAt: { $gte: later(range.start, RECORDING_START), $lt: range.end } }),
-        Task.countDocuments(),
-        Task.findOne().sort({ createdAt: 1 }).select({ createdAt: 1 }).lean(),
+        getAnalyticsSnapshot(),
       ]);
-      if (!firstTask || total === 0) return NextResponse.json({ value: 0 });
-      const weeklyAverage = total / getElapsedCalendarPeriods(new Date(firstTask.createdAt)).weeks;
+      if (!snapshot.firstCreatedAt || snapshot.total === 0) return NextResponse.json({ value: 0 });
+      const weeklyAverage = snapshot.total / getElapsedCalendarPeriods(snapshot.firstCreatedAt).weeks;
       return NextResponse.json({ value: Math.round((current / weeklyAverage) * 100) });
     }
     const start = boundary(date);
-    const [current, activeDays] = await Promise.all([
+    const [current, snapshot] = await Promise.all([
       Task.countDocuments({ createdAt: { $gte: start, $lt: new Date(start.getTime() + DAY) } }),
-      Task.aggregate<{ count: number }>([
-        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Ho_Chi_Minh" } }, count: { $sum: 1 } } },
-      ]),
+      getAnalyticsSnapshot(),
     ]);
-    const totalOnWorkingDays = activeDays.reduce((sum, day) => sum + day.count, 0);
-    const dailyAverage = activeDays.length ? totalOnWorkingDays / activeDays.length : 0;
+    const dailyAverage = snapshot.activeDays ? snapshot.total / snapshot.activeDays : 0;
     return NextResponse.json({ value: dailyAverage > 0 ? Math.round((current / dailyAverage) * 100) : 0 });
   } catch {
     return NextResponse.json({ error: "Không thể tải chỉ số công việc" }, { status: 500 });

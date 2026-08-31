@@ -41,6 +41,11 @@ const taskSchema = new Schema<TaskDocument>(
   { timestamps: true },
 );
 
+// Match newest-first cursor pagination and the date-bounded analytics reads.
+taskSchema.index({ createdAt: -1, _id: -1 });
+taskSchema.index({ status: 1, createdAt: -1 });
+taskSchema.index({ supportPerson: 1, createdAt: -1 });
+
 const cachedTaskModel = mongoose.models.Task as
   | mongoose.Model<TaskDocument>
   | undefined;

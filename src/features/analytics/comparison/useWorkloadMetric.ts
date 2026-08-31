@@ -6,6 +6,30 @@ export type WorkloadMetric = "total" | "monthly" | "weekly" | "daily";
 export const RECORDING_START = "2026-08-14";
 export function getToday() { return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }); }
 
+const CACHE_TTL = 60_000;
+const metricCache = new Map<string, { value: number; expiresAt: number }>();
+const pendingRequests = new Map<string, Promise<number>>();
+
+function loadMetric(metric: WorkloadMetric, date: string) {
+  const key = `${metric}:${date}`;
+  const cached = metricCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+
+  const pending = pendingRequests.get(key);
+  if (pending) return pending;
+
+  const request = fetch(`/api/analytics/workload-comparison?metric=${metric}&date=${date}`)
+    .then(async (response) => {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Không thể tải chỉ số");
+      metricCache.set(key, { value: result.value, expiresAt: Date.now() + CACHE_TTL });
+      return result.value as number;
+    })
+    .finally(() => pendingRequests.delete(key));
+  pendingRequests.set(key, request);
+  return request;
+}
+
 export function useWorkloadMetric(metric: WorkloadMetric, date: string) {
   const [value, setValue] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -14,19 +38,20 @@ export function useWorkloadMetric(metric: WorkloadMetric, date: string) {
 
   useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
-    const controller = new AbortController();
-    fetch(`/api/analytics/workload-comparison?metric=${metric}&date=${date}`, { signal: controller.signal })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Không thể tải chỉ số");
-        setValue(result.value);
-      })
+    let active = true;
+    const cached = metricCache.get(`${metric}:${date}`);
+    queueMicrotask(() => {
+      if (!active) return;
+      if (!cached || cached.expiresAt <= Date.now()) setLoading(true);
+      setError("");
+    });
+    loadMetric(metric, date)
+      .then((result) => { if (active) setValue(result); })
       .catch((loadError) => {
-        if (loadError instanceof DOMException && loadError.name === "AbortError") return;
-        setError(loadError instanceof Error ? loadError.message : "Không thể tải chỉ số");
+        if (active) setError(loadError instanceof Error ? loadError.message : "Không thể tải chỉ số");
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [date, metric, refreshKey]);
 
   return { value, loading, error, reload: () => { setLoading(true); setError(""); setRefreshKey((current) => current + 1); } };

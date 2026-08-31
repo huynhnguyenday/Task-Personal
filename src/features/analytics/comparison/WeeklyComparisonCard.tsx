@@ -26,5 +26,5 @@ export default function WeeklyComparisonCard() {
   const monday = week ? weekToMonday(week) : "";
   const metricDate = monday && monday < RECORDING_START ? RECORDING_START : monday;
   const metric = useWorkloadMetric("weekly", metricDate);
-  return <ComparisonCard label="So với TB mỗi tuần" ratio pickerType="week" min={toWeekValue(RECORDING_START)} fallbackDate={toWeekValue(getToday())} date={week} onDateChange={(value) => { metric.reload(); setWeek(value); }} {...metric} />;
+  return <ComparisonCard label="So với TB mỗi tuần" ratio pickerType="week" min={toWeekValue(RECORDING_START)} fallbackDate={toWeekValue(getToday())} date={week} onDateChange={setWeek} {...metric} />;
 }
