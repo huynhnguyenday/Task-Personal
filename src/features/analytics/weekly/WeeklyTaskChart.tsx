@@ -6,8 +6,10 @@ import { CategoryScale, Chart as ChartJS, Filler, Legend, LineElement, LinearSca
 import { Skeleton } from "@/components/LoadingSkeleton";
 import TaskDetailModal from "../shared/TaskDetailModal";
 import type { WeeklyDay, WeeklyTask } from "./types";
+import { readClientCache, writeClientCache } from "@/lib/clientCache";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+const WEEKLY_CACHE_TTL = 5 * 60_000;
 
 function formatLocalDate(date: Date) {
   const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -52,12 +54,19 @@ export default function WeeklyTaskChart() {
 
   useEffect(() => {
     if (!appliedRange) return;
+    const cacheKey = `analytics:weekly:${appliedRange.from}:${appliedRange.to}`;
+    const cached = readClientCache<WeeklyDay[]>(cacheKey, WEEKLY_CACHE_TTL);
+    if (cached) {
+      queueMicrotask(() => { setData(cached.value); setLoading(false); });
+      if (cached.fresh) return;
+    }
     const controller = new AbortController();
     fetch(`/api/analytics/weekly?from=${appliedRange.from}&to=${appliedRange.to}`, { signal: controller.signal })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Không thể tải biểu đồ");
         setData(result);
+        writeClientCache(cacheKey, result);
       })
       .catch((loadError) => {
         if (loadError instanceof DOMException && loadError.name === "AbortError") return;

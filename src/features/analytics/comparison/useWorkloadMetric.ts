@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readClientCache, writeClientCache } from "@/lib/clientCache";
 
 export type WorkloadMetric = "total" | "monthly" | "weekly" | "daily";
 export const RECORDING_START = "2026-08-14";
@@ -14,6 +15,11 @@ function loadMetric(metric: WorkloadMetric, date: string) {
   const key = `${metric}:${date}`;
   const cached = metricCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+  const stored = readClientCache<number>(`analytics:metric:${key}`, CACHE_TTL);
+  if (stored?.fresh) {
+    metricCache.set(key, { value: stored.value, expiresAt: Date.now() + CACHE_TTL });
+    return Promise.resolve(stored.value);
+  }
 
   const pending = pendingRequests.get(key);
   if (pending) return pending;
@@ -23,6 +29,7 @@ function loadMetric(metric: WorkloadMetric, date: string) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể tải chỉ số");
       metricCache.set(key, { value: result.value, expiresAt: Date.now() + CACHE_TTL });
+      writeClientCache(`analytics:metric:${key}`, result.value);
       return result.value as number;
     })
     .finally(() => pendingRequests.delete(key));
@@ -39,10 +46,13 @@ export function useWorkloadMetric(metric: WorkloadMetric, date: string) {
   useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
     let active = true;
-    const cached = metricCache.get(`${metric}:${date}`);
+    const key = `${metric}:${date}`;
+    const stored = readClientCache<number>(`analytics:metric:${key}`, CACHE_TTL);
+    const cached = metricCache.get(key) ?? (stored ? { value: stored.value, expiresAt: stored.fresh ? Date.now() + CACHE_TTL : 0 } : undefined);
     queueMicrotask(() => {
       if (!active) return;
-      if (!cached || cached.expiresAt <= Date.now()) setLoading(true);
+      if (cached) setValue(cached.value);
+      if (!cached) setLoading(true);
       setError("");
     });
     loadMetric(metric, date)

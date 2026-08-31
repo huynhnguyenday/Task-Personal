@@ -8,6 +8,11 @@ import WorkloadComparisonCards from "./comparison/WorkloadComparisonCards";
 import OverallSummaryCards from "./overview/OverallSummaryCards";
 import type { MonthlyStatus } from "./monthly-status/types";
 import type { Supporter } from "./supporters/types";
+import { readClientCache, writeClientCache } from "@/lib/clientCache";
+
+const ANALYTICS_CACHE_KEY = "analytics:monthly";
+const ANALYTICS_CACHE_TTL = 5 * 60_000;
+type MonthlyAnalyticsCache = { supporters: Supporter[]; monthly: MonthlyStatus };
 
 export default function AnalyticsPage() {
   const [supporters, setSupporters] = useState<Supporter[]>([]);
@@ -15,19 +20,27 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadMonthlyAnalytics = useCallback(() => {
+  const loadMonthlyAnalytics = useCallback((force = true) => {
+    const cached = readClientCache<MonthlyAnalyticsCache>(ANALYTICS_CACHE_KEY, ANALYTICS_CACHE_TTL);
+    if (cached) {
+      setSupporters(cached.value.supporters);
+      setMonthly(cached.value.monthly);
+      setLoading(false);
+      if (cached.fresh && !force) return;
+    }
     Promise.all([fetch("/api/analytics/top-supporters"), fetch("/api/analytics/monthly-status")])
       .then(async (responses) => {
         if (responses.some((response) => !response.ok)) throw new Error("load");
         const [supporterData, monthlyData] = await Promise.all(responses.map((response) => response.json()));
         setSupporters(supporterData); setMonthly(monthlyData);
+        writeClientCache(ANALYTICS_CACHE_KEY, { supporters: supporterData, monthly: monthlyData });
       })
       .catch(() => setError("Chưa thể tải đầy đủ dữ liệu thống kê."))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    loadMonthlyAnalytics();
+    queueMicrotask(() => loadMonthlyAnalytics(false));
   }, [loadMonthlyAnalytics]);
 
   return (
@@ -46,7 +59,7 @@ export default function AnalyticsPage() {
         <section className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[1.45fr_1fr] lg:grid-rows-[minmax(0,1fr)]">
           <WeeklyTaskChart />
           <aside className="h-full min-h-0">
-            <TopSupportersTable data={supporters} loading={loading} onTaskUpdated={loadMonthlyAnalytics} />
+            <TopSupportersTable data={supporters} loading={loading} onTaskUpdated={() => loadMonthlyAnalytics(true)} />
           </aside>
         </section>
       </div>
