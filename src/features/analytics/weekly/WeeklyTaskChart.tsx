@@ -32,8 +32,10 @@ export default function WeeklyTaskChart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showValues, setShowValues] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [selectedTask, setSelectedTask] = useState<WeeklyTask | null>(null);
   const chartRef = useRef<ChartJS<"line"> | null>(null);
+  const chartAreaRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const tooltipHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTooltipHovered = useRef(false);
@@ -50,6 +52,14 @@ export default function WeeklyTaskChart() {
       setAppliedRange(range);
     });
     return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const syncMobile = () => setIsMobile(media.matches);
+    syncMobile();
+    media.addEventListener("change", syncMobile);
+    return () => media.removeEventListener("change", syncMobile);
   }, []);
 
   useEffect(() => {
@@ -144,6 +154,39 @@ export default function WeeklyTaskChart() {
     activeAnimationFrame.current = requestAnimationFrame(animate);
   }
 
+  function closeTooltip() {
+    const tooltipElement = tooltipRef.current;
+    if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current);
+    if (tooltipElement) {
+      tooltipElement.style.opacity = "0";
+      tooltipElement.style.pointerEvents = "none";
+    }
+    chartRef.current?.setActiveElements([]);
+    chartRef.current?.tooltip?.setActiveElements([], { x: 0, y: 0 });
+    animateActivePoint(0, true);
+  }
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (tooltipRef.current?.contains(target) || chartAreaRef.current?.querySelector("canvas")?.contains(target)) return;
+      const tooltipElement = tooltipRef.current;
+      if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current);
+      if (tooltipElement) {
+        tooltipElement.style.opacity = "0";
+        tooltipElement.style.pointerEvents = "none";
+      }
+      chartRef.current?.setActiveElements([]);
+      chartRef.current?.tooltip?.setActiveElements([], { x: 0, y: 0 });
+      activePointIndex.current = null;
+      activePointProgress.current = 0;
+      chartRef.current?.draw();
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
+  }, [isMobile]);
+
   function renderTooltip(context: { chart: ChartJS; tooltip: TooltipModel<"line"> }) {
     const tooltipElement = tooltipRef.current;
     if (!tooltipElement) return;
@@ -231,7 +274,7 @@ export default function WeeklyTaskChart() {
       {error && <p className="mt-2 text-xs text-[#a34646]">{error}</p>}
       <div className="mt-3 min-h-[240px] min-w-0 flex-1 overflow-visible sm:min-h-[300px]">
         {loading ? <div className="flex h-full items-end gap-4 overflow-hidden">{Array.from({ length: 7 }).map((_, index) => <Skeleton key={index} className="min-h-12 min-w-0 flex-1" width={`${48 + index * 6}%`} />)}</div> : (
-          <div className="relative h-full min-w-0 overflow-visible"><Line ref={chartRef} plugins={[valueLabels]} data={chartData} options={{ responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", intersect: true }, animation: { duration: 650 }, layout: { padding: { top: 18 } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: renderTooltip } }, scales: { x: { title: { display: true, text: "Ngày", color: "#727a82" }, grid: { display: false }, ticks: { color: "#727a82", maxTicksLimit: 16 } }, y: { beginAtZero: true, suggestedMax: Math.max(...data.map((day) => day.count), 1) + 1, ticks: { precision: 0, color: "#727a82" }, grid: { color: "#edf0ee" } } } }} /><div ref={tooltipRef} className="pointer-events-none absolute z-20 h-[245px] w-[300px] overflow-hidden rounded-lg bg-[#173f33] text-white opacity-0 shadow-[0_16px_40px_rgba(20,35,29,0.32)] transition-opacity" onMouseEnter={() => { isTooltipHovered.current = true; if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current); if (activePointIndex.current !== null) { chartRef.current?.setActiveElements([{ datasetIndex: 0, index: activePointIndex.current }]); animateActivePoint(1); } }} onMouseLeave={(event) => { isTooltipHovered.current = false; chartRef.current?.setActiveElements([]); animateActivePoint(0, true); event.currentTarget.style.opacity = "0"; event.currentTarget.style.pointerEvents = "none"; }} /></div>
+          <div ref={chartAreaRef} className="relative h-full min-w-0 overflow-visible"><Line ref={chartRef} plugins={[valueLabels]} data={chartData} options={{ responsive: true, maintainAspectRatio: false, events: isMobile ? ["click"] : ["mousemove", "mouseout", "click", "touchstart", "touchmove"], interaction: { mode: "nearest", intersect: true }, onClick: (event, elements, chart) => { if (!isMobile) return; if (!elements.length) { closeTooltip(); return; } const point = elements[0]; chart.setActiveElements([point]); chart.tooltip?.setActiveElements([point], { x: event.x ?? 0, y: event.y ?? 0 }); chart.update(); }, animation: { duration: 650 }, layout: { padding: { top: 18 } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: renderTooltip } }, scales: { x: { title: { display: true, text: "Ngày", color: "#727a82" }, grid: { display: false }, ticks: { color: "#727a82", maxTicksLimit: 16 } }, y: { beginAtZero: true, suggestedMax: Math.max(...data.map((day) => day.count), 1) + 1, ticks: { precision: 0, color: "#727a82" }, grid: { color: "#edf0ee" } } } }} /><div ref={tooltipRef} className="pointer-events-none absolute z-20 h-[245px] w-[min(300px,calc(100vw-32px))] overflow-hidden rounded-lg bg-[#173f33] text-white opacity-0 shadow-[0_16px_40px_rgba(20,35,29,0.32)] transition-opacity" onMouseEnter={() => { if (isMobile) return; isTooltipHovered.current = true; if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current); if (activePointIndex.current !== null) { chartRef.current?.setActiveElements([{ datasetIndex: 0, index: activePointIndex.current }]); animateActivePoint(1); } }} onMouseLeave={(event) => { if (isMobile) return; isTooltipHovered.current = false; chartRef.current?.setActiveElements([]); animateActivePoint(0, true); event.currentTarget.style.opacity = "0"; event.currentTarget.style.pointerEvents = "none"; }} /></div>
         )}
       </div>
       <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} onTaskUpdated={(updatedTask) => { setData((current) => current.map((day) => ({ ...day, tasks: day.tasks.map((task) => task.id === updatedTask.id ? updatedTask : task) }))); setSelectedTask(updatedTask); }} />
