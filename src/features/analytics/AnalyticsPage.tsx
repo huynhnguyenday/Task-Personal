@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import MonthlyStatusCards from "./monthly-status/MonthlyStatusCards";
 import TopSupportersTable from "./supporters/TopSupportersTable";
-import WorkloadComparisonCards from "./comparison/WorkloadComparisonCards";
-import OverallSummaryCards from "./overview/OverallSummaryCards";
+import PairedMetricCards from "./PairedMetricCards";
 import type { MonthlyStatus } from "./monthly-status/types";
 import type { Supporter } from "./supporters/types";
 import { readClientCache, writeClientCache } from "@/lib/clientCache";
@@ -67,10 +66,9 @@ export default function AnalyticsPage() {
       </header>
       <div className="mx-auto mt-4 flex w-full max-w-[1440px] flex-col gap-3 pb-4">
         {error && <p className="shrink-0 text-xs text-[#a34646]">{error}</p>}
-        <div className="grid min-w-0 shrink-0 grid-cols-1 gap-2.5 min-[480px]:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-6 lg:grid-rows-2">
-          <MonthlyStatusCards data={monthly} loading={monthlyLoading} className="grid grid-cols-2 gap-2.5 lg:col-span-2 lg:row-span-2 lg:grid-rows-2" />
-          <OverallSummaryCards className="contents" />
-          <WorkloadComparisonCards className="contents" />
+        <div className="grid min-w-0 shrink-0 gap-2.5 lg:grid-cols-[1fr_2fr]">
+          <MonthlyStatusCards data={monthly} loading={monthlyLoading} className="grid grid-cols-2 gap-2.5 lg:grid-cols-1" />
+          <PairedMetricCards />
         </div>
         <section className="grid gap-3 lg:grid-cols-[1.45fr_1fr]">
           <div className="grid min-w-0 gap-3 lg:grid-rows-2">
