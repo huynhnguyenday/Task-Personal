@@ -550,7 +550,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="scrollbar-task h-screen overflow-hidden bg-[#fff] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
+    <main className="scrollbar-task min-h-dvh w-full min-w-0 overflow-y-auto bg-[#fff] px-3 py-5 pb-20 text-[#20252b] sm:px-4 sm:py-8 md:h-screen md:overflow-hidden md:pb-20">
       <header className="relative mx-auto flex max-w-[1440px] items-start justify-between gap-5 border-b border-[#e3e7e9] pb-7 sm:items-center">
         <div className="flex items-center gap-3.5">
           <span className="grid h-[42px] w-[42px] rotate-[-6deg] place-items-center bg-[#28745b] text-[21px] font-bold text-white">
@@ -569,21 +569,21 @@ export default function Home() {
           <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">
             TỔNG QUAN
           </p>
-          <p className="mt-2.5 w-max text-sm text-[#727a82]">
+          <p className="mt-2.5 max-w-full text-sm leading-5 text-[#727a82]">
             Theo dõi tiến độ và lưu lại những điều quan trọng trong ngày.
           </p>
         </div>
-        <div className="flex flex-1 items-center gap-3 lg:ml-auto lg:w-1/2 lg:flex-none">
-          <div className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:gap-3 lg:ml-auto lg:w-1/2 lg:flex-none">
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
             {statusSummary.map((summary) => (
               <div
-                className={`grid min-h-[78px] grid-cols-[3fr_2fr] items-center gap-2 px-4 py-3 ${summary.className}`}
+                className={`grid min-h-[70px] grid-cols-1 place-items-center gap-1 px-2 py-3 text-center sm:min-h-[78px] sm:grid-cols-[3fr_2fr] sm:px-4 sm:text-left ${summary.className}`}
                 key={summary.tone}
               >
-                <strong className="mr-2 justify-self-end text-right text-[34px] leading-none text-current">
+                  <strong className="text-[28px] leading-none text-current sm:mr-2 sm:justify-self-end sm:text-right sm:text-[34px]">
                   {summary.count}
                 </strong>
-                <span className="text-sm font-bold leading-tight">
+                <span className="text-[11px] font-bold leading-tight sm:text-sm">
                   {summary.label.split(" ").map((word) => (
                     <span className="block" key={word}>
                       {word}
@@ -594,7 +594,7 @@ export default function Home() {
             ))}
           </div>
           <button
-            className="grid h-[78px] w-[52px] shrink-0 place-items-center border-0 bg-[#28745b] text-3xl font-light text-white transition hover:bg-[#1e604a]"
+            className="grid h-11 w-full shrink-0 place-items-center border-0 bg-[#28745b] text-2xl font-light text-white transition hover:bg-[#1e604a] sm:h-[78px] sm:w-[52px] sm:text-3xl"
             onClick={openModal}
             type="button"
             aria-label="Thêm công việc"
@@ -610,14 +610,24 @@ export default function Home() {
         </p>
       )}
       <section
-        className="mx-auto max-w-[1440px] overflow-x-auto"
+        className="mx-auto max-w-[1440px] overflow-visible md:overflow-x-auto"
         aria-live="polite"
       >
         {isLoading ? (
           <TaskTableSkeleton />
         ) : (
-          <div className="min-w-[1000px]">
-            <div className="grid grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] items-center gap-4 px-4 pb-3 text-[12px] font-bold uppercase tracking-[1.2px] text-[#727a82]">
+          <div className="md:min-w-[1000px]">
+            <div className="mb-3 grid min-w-0 max-w-full gap-2 overflow-hidden md:hidden">
+              <div className="grid grid-cols-2 gap-2">
+                <input className="h-10 min-w-0 border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm outline-none focus:border-[#28745b]" type="search" value={descriptionSearch} onChange={(event) => setDescriptionSearch(event.target.value)} placeholder="Tìm công việc..." aria-label="Tìm theo mô tả" />
+                <input className="h-10 min-w-0 border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm outline-none focus:border-[#28745b]" type="search" value={supportPersonSearch} onChange={(event) => setSupportPersonSearch(event.target.value)} placeholder="Người hỗ trợ..." aria-label="Tìm theo người hỗ trợ" />
+              </div>
+              <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1">
+                {(["department", "company", "workplace", "status"] as const).map((key) => <select className="h-9 min-w-[135px] border border-[#d9dfe0] bg-white px-2 text-xs font-semibold text-[#515a60]" key={key} value={activeFilters[key][0] || ""} onChange={(event) => setActiveFilters((current) => ({ ...current, [key]: event.target.value ? [event.target.value] : [] }))}><option value="">{filterFields.find((field) => field.key === key)?.label}</option>{getFilterOptions(key).map((value) => <option key={value} value={value}>{statusLabels[value] || value}</option>)}</select>)}
+                {hasActiveFilters && <button className="h-9 shrink-0 bg-[#fae0e0] px-3 text-xs font-bold text-[#a34646]" type="button" onClick={clearAllFilters}>Xóa lọc</button>}
+              </div>
+            </div>
+            <div className="hidden grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] items-center gap-4 px-4 pb-3 text-[12px] font-bold uppercase tracking-[1.2px] text-[#727a82] md:grid">
               {filterFields.map(({ key, label }) => (
                 <div className="relative" data-filter-key={key} key={key}>
                   <button
@@ -729,7 +739,7 @@ export default function Home() {
               </button>
             </div>
             <div
-              className="h-[450px] overflow-y-auto [@media(min-height:900px)]:h-[600px]"
+              className="max-h-[58dvh] overflow-y-auto pr-1 md:h-[450px] md:max-h-none md:pr-0 [@media(min-height:900px)]:md:h-[600px]"
               onScroll={handleTaskScroll}
             >
               <div>
@@ -784,9 +794,9 @@ export default function Home() {
                       </article>
                     ) : (
                       <article
-                        className={`my-2 grid grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] items-center gap-4 px-4 py-4 text-[13px] font-bold text-[#515a60] transition-all ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff4cc]" : getStatusTone(task.status) === "red" ? "bg-[#fae0e0]" : "bg-[#f1e7ff]"}`}
+                        className={`my-2 grid grid-cols-2 items-center gap-x-3 gap-y-2.5 border-l-4 px-3 py-3 text-[12px] font-bold text-[#515a60] transition-all md:grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] md:gap-4 md:border-l-0 md:px-4 md:py-4 md:text-[13px] ${getStatusTone(task.status) === "green" ? "border-[#28745b] bg-[#e3f0e9]" : getStatusTone(task.status) === "yellow" ? "border-[#d39b00] bg-[#fff4cc]" : getStatusTone(task.status) === "red" ? "border-[#bd4c4c] bg-[#fae0e0]" : "border-[#7c4db3] bg-[#f1e7ff]"}`}
                       >
-                        <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="col-span-2 flex min-w-0 items-center gap-2.5 md:col-span-1">
                           <span
                             className={`h-[9px] w-[9px] shrink-0 rounded-full ${getStatusTone(task.status) === "green" ? "bg-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#d39b00]" : getStatusTone(task.status) === "red" ? "bg-[#bd4c4c]" : "bg-[#7c4db3]"}`}
                           />
@@ -804,28 +814,31 @@ export default function Home() {
                             )}
                           </div>
                         </div>
-                        <span className="truncate">
+                        <span className="grid min-w-0 truncate">
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Người hỗ trợ</small>
                           {task.supportPerson || "-"}
                         </span>
-                        <span className="truncate">
+                        <span className="grid min-w-0 truncate">
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Phòng ban</small>
                           {task.department || "-"}
                         </span>
-                        <span className="truncate">{task.company || "-"}</span>
-                        <span className="truncate">
+                        <span className="grid min-w-0 truncate"><small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Công ty</small>{task.company || "-"}</span>
+                        <span className="grid min-w-0 truncate">
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Nơi làm việc</small>
                           {task.workplace || "-"}
                         </span>
                         <time
-                          className="whitespace-nowrap text-[12px]"
+                          className="grid whitespace-nowrap text-[12px]"
                           dateTime={task.createdAt}
                         >
-                          {formatDate(task.createdAt)}
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Ngày tạo</small>{formatDate(task.createdAt)}
                         </time>
                         <span
                           className={`w-fit px-2 py-1 text-[12px] font-bold ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9] text-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff0e7] text-[#ae5d32]" : getStatusTone(task.status) === "red" ? "bg-[#fae8e8] text-[#a34646]" : "bg-[#f1e7ff] text-[#7c4db3]"}`}
                         >
                           {statusLabels[task.status] || task.status}
                         </span>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-end gap-1 md:justify-start">
                           <button
                             className="grid h-8 w-8 place-items-center border-0 bg-transparent text-sm text-[#727a82] transition hover:bg-white/70 hover:text-[#28745b]"
                             type="button"

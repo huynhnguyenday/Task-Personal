@@ -12,9 +12,9 @@ const cards = [
 
 export default function MonthlyStatusCards({ data, loading, className = "grid shrink-0 grid-cols-2 gap-2" }: { data: MonthlyStatus | null; loading: boolean; className?: string }) {
   return (
-    <section aria-label="Trạng thái task trong tháng" className={className}>
+    <section aria-label="Trạng thái task trong tháng" className={`${className} min-w-0`}>
       {cards.map((card) => (
-        <article key={card.key} className={`flex min-h-[58px] flex-col items-center justify-center gap-1.5 px-2 py-2 ${card.className}`}>
+        <article key={card.key} className={`flex min-w-0 min-h-[58px] flex-col items-center justify-center gap-1.5 overflow-hidden px-1 py-2 sm:px-2 ${card.className}`}>
           <div className="flex items-center justify-center gap-2.5">
             <FontAwesomeIcon className="w-4 shrink-0 text-base opacity-80" icon={card.icon} />
             {loading ? <Skeleton className="h-8 w-10 bg-white/40" /> : <strong className="text-3xl leading-none">{data?.[card.key] ?? 0}</strong>}

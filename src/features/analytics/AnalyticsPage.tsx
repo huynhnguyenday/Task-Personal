@@ -60,25 +60,25 @@ export default function AnalyticsPage() {
   }, [loadMonthlyAnalytics]);
 
   return (
-    <main className="scrollbar-analytics h-dvh overflow-y-auto bg-[#f5f7f5] px-3 py-4 text-[#20252b] sm:px-6 sm:py-5">
+    <main className="scrollbar-analytics h-dvh w-full min-w-0 overflow-y-auto bg-[#f5f7f5] px-3 py-4 pb-20 text-[#20252b] sm:px-6 sm:py-5">
       <header className="mx-auto flex w-full max-w-[1440px] shrink-0 items-end justify-between border-b border-[#dce2de] pb-4 pl-14 sm:pl-0">
         <div><p className="text-[10px] font-bold tracking-[1.5px] text-[#28745b]">PERSONAL WORKSPACE</p><h1 className="mt-1 text-xl font-semibold sm:text-2xl">Phân tích công việc</h1></div>
         <p className="hidden text-xs font-semibold text-[#515a60] sm:block">Dữ liệu tự động cập nhật theo tháng hiện tại</p>
       </header>
       <div className="mx-auto mt-4 flex w-full max-w-[1440px] flex-col gap-3 pb-4">
         {error && <p className="shrink-0 text-xs text-[#a34646]">{error}</p>}
-        <div className="grid shrink-0 grid-cols-2 gap-2.5 lg:grid-cols-6 lg:grid-rows-2">
+        <div className="grid min-w-0 shrink-0 grid-cols-1 gap-2.5 min-[480px]:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-6 lg:grid-rows-2">
           <MonthlyStatusCards data={monthly} loading={monthlyLoading} className="grid grid-cols-2 gap-2.5 lg:col-span-2 lg:row-span-2 lg:grid-rows-2" />
           <OverallSummaryCards className="contents" />
           <WorkloadComparisonCards className="contents" />
         </div>
         <section className="grid gap-3 lg:grid-cols-[1.45fr_1fr]">
-          <div className="grid min-w-0 grid-rows-2 gap-3">
-            <div className="h-full min-h-[380px]"><WeeklyTaskChart /></div>
+          <div className="grid min-w-0 gap-3 lg:grid-rows-2">
+            <div className="h-[330px] min-h-0 sm:h-full sm:min-h-[380px]"><WeeklyTaskChart /></div>
             <AverageWeekdayChart data={breakdowns.data.weekdays} loading={breakdowns.loading} error={breakdowns.error} />
           </div>
           <aside className="grid min-w-0 gap-3">
-            <div className="h-[430px] min-h-0"><TopSupportersTable data={supporters} loading={supportersLoading} onTaskUpdated={() => loadMonthlyAnalytics(true)} /></div>
+            <div className="h-[390px] min-h-0 sm:h-[430px]"><TopSupportersTable data={supporters} loading={supportersLoading} onTaskUpdated={() => loadMonthlyAnalytics(true)} /></div>
             <WorkloadRankingTable eyebrow="PHÂN BỔ THEO PHÒNG BAN" title="Tổng công việc của các phòng ban" data={breakdowns.data.departments} loading={breakdowns.loading} error={breakdowns.error} />
             <WorkloadRankingTable eyebrow="PHÂN BỔ THEO DANH MỤC" title="Tổng công việc theo danh mục" data={breakdowns.data.categories} loading={breakdowns.loading} error={breakdowns.error} />
           </aside>

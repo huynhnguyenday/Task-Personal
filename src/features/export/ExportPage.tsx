@@ -109,13 +109,13 @@ export default function ExportPage() {
   }
 
   return (
-    <main className="scrollbar-settings min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-4 py-8 text-[#20252b]">
+    <main className="scrollbar-settings min-h-dvh bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-3 py-5 pb-20 text-[#20252b] sm:px-4 sm:py-8">
       <header className="mx-auto max-w-[1440px] border-b border-[#e3e7e9] pb-7 pl-14 sm:pl-0">
         <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">PERSONAL WORKSPACE</p>
         <h1 className="text-2xl tracking-[-0.4px]">Xuất dữ liệu</h1>
       </header>
 
-      <section className="mx-auto mt-6 max-w-[760px] border border-[#e3e7e9] bg-white p-6 shadow-[0_12px_35px_rgba(32,37,43,0.06)] sm:p-9">
+      <section className="mx-auto mt-5 max-w-[760px] border border-[#e3e7e9] bg-white p-4 shadow-[0_12px_35px_rgba(32,37,43,0.06)] sm:mt-6 sm:p-9">
         <form onSubmit={previewReport}>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-bold text-[#515a60]">
@@ -128,7 +128,7 @@ export default function ExportPage() {
             </label>
           </div>
           {error && <p className="mt-4 text-sm text-[#a34646]">{error}</p>}
-          <button className="mt-7 inline-flex h-12 items-center justify-center gap-2.5 bg-[#28745b] px-6 text-sm font-bold text-white transition hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60" type="submit" disabled={isLoading}>
+          <button className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2.5 bg-[#28745b] px-6 text-sm font-bold text-white transition hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60 sm:mt-7 sm:w-auto" type="submit" disabled={isLoading}>
             <FontAwesomeIcon icon={faEye} />{isLoading ? "Đang tải bản xem trước..." : "Xem trước file"}
           </button>
         </form>
@@ -149,7 +149,12 @@ export default function ExportPage() {
             </header>
 
             <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
-              <div className="mx-auto min-w-[1900px] bg-white p-8 shadow-[0_3px_18px_rgba(32,37,43,0.16)]">
+              <div className="grid gap-3 sm:hidden">
+                <div className="grid grid-cols-2 gap-2"><div className="bg-[#d9eaf7] p-3"><span className="text-[10px] font-bold uppercase text-[#515a60]">Tổng công việc</span><strong className="mt-1 block text-2xl">{preview.total}</strong></div><div className="bg-[#d9ead3] p-3"><span className="text-[10px] font-bold uppercase text-[#515a60]">Hoàn thành</span><strong className="mt-1 block text-2xl text-[#28745b]">{preview.completed}</strong></div></div>
+                {preview.tasks.map((task) => <article className="border-l-4 border-[#28745b] bg-white p-3 shadow-sm" key={task.number}><div className="flex items-start justify-between gap-3"><span className="text-[10px] font-bold text-[#28745b]">#{String(task.number).padStart(2, "0")}</span><time className="text-[10px] font-semibold text-[#727a82]">{task.startedAt}</time></div><h3 className="mt-2 text-sm font-bold leading-5">{task.description}</h3><p className="mt-2 text-xs font-semibold text-[#515a60]">{task.category}</p><div className="mt-3 flex items-center justify-between gap-2 border-t border-[#edf0ee] pt-2"><span className="truncate text-xs text-[#727a82]">{task.supportPerson || "—"}</span><strong className={`shrink-0 px-2 py-1 text-[10px] ${task.completed ? "bg-[#e3f0e9] text-[#28745b]" : "bg-[#fff4cc] text-[#9a7000]"}`}>{task.completed ? "Hoàn thành" : "Đang thực hiện"}</strong></div></article>)}
+                {!preview.tasks.length && <p className="bg-white p-6 text-center text-sm text-[#727a82]">Không có task phù hợp trong khoảng thời gian này.</p>}
+              </div>
+              <div className="mx-auto hidden min-w-[1900px] bg-white p-8 shadow-[0_3px_18px_rgba(32,37,43,0.16)] sm:block">
                 <table className="w-full table-fixed border-collapse font-[Arial,sans-serif] text-[11px] text-black">
                   <colgroup>
                     <col className="w-[48px]" /><col className="w-[180px]" /><col className="w-[300px]" /><col className="w-[210px]" /><col className="w-[90px]" />
@@ -181,7 +186,7 @@ export default function ExportPage() {
               </div>
             </div>
 
-            <footer className="flex justify-end gap-3 border-t border-[#e3e7e9] p-5 sm:p-6">
+            <footer className="grid grid-cols-2 gap-2 border-t border-[#e3e7e9] p-3 sm:flex sm:justify-end sm:gap-3 sm:p-6">
               <button className="h-11 border border-[#d9dfe0] bg-white px-5 text-sm font-bold text-[#515a60] hover:bg-[#f5f7f5]" type="button" onClick={() => setPreview(null)}>Chọn lại</button>
               <button className="inline-flex h-11 items-center gap-2 bg-[#28745b] px-5 text-sm font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60" type="button" onClick={() => void exportReport()} disabled={isExporting || !preview.tasks.length}><FontAwesomeIcon icon={faDownload} />{isExporting ? "Đang tạo file..." : "Xuất file Excel"}</button>
             </footer>

@@ -9,14 +9,14 @@ export function Skeleton({ className = "", width }: SkeletonProps) {
 
 export function TaskTableSkeleton() {
   return (
-    <div className="min-w-[1000px]" role="status" aria-label="Đang tải danh sách công việc">
-      <div className="grid grid-cols-[2.2fr_1.35fr_1.15fr_1.15fr_1.2fr_1fr_1.15fr_80px] gap-4 px-4 pb-3">
+    <div className="w-full md:min-w-[1000px]" role="status" aria-label="Đang tải danh sách công việc">
+      <div className="hidden grid-cols-[2.2fr_1.35fr_1.15fr_1.15fr_1.2fr_1fr_1.15fr_80px] gap-4 px-4 pb-3 md:grid">
         {[72, 58, 64, 52, 68, 55, 62, 45].map((width, index) => <Skeleton key={index} className="h-3" width={`${width}%`} />)}
       </div>
       <div className="overflow-hidden border border-[#e3e7e9] bg-white">
         {Array.from({ length: 7 }).map((_, row) => (
-          <div key={row} className="grid min-h-[62px] grid-cols-[2.2fr_1.35fr_1.15fr_1.15fr_1.2fr_1fr_1.15fr_80px] items-center gap-4 border-b border-[#edf0ee] px-4 last:border-b-0">
-            {Array.from({ length: 8 }).map((__, column) => <Skeleton key={column} className={`h-3 ${column === 0 ? "w-4/5" : column === 7 ? "w-8" : row % 2 ? "w-2/3" : "w-3/4"}`} />)}
+          <div key={row} className="grid min-h-[92px] grid-cols-2 items-center gap-3 border-b border-[#edf0ee] px-3 last:border-b-0 md:min-h-[62px] md:grid-cols-[2.2fr_1.35fr_1.15fr_1.15fr_1.2fr_1fr_1.15fr_80px] md:gap-4 md:px-4">
+            {Array.from({ length: 8 }).map((__, column) => <Skeleton key={column} className={`h-3 ${column === 0 ? "col-span-2 w-4/5 md:col-span-1" : column === 7 ? "w-8 justify-self-end md:justify-self-auto" : row % 2 ? "w-2/3" : "w-3/4"}`} />)}
           </div>
         ))}
       </div>

@@ -214,8 +214,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="scrollbar-settings min-h-screen bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-2 py-[22px] pb-[50px] text-[#20252b] sm:px-4 sm:py-8 sm:pb-20">
-      <header className="mx-auto max-w-[1440px] border-b border-[#e3e7e9] pb-7">
+    <main className="scrollbar-settings min-h-dvh bg-[#f5f7f5] bg-[radial-gradient(circle_at_90%_0%,#e4efe7_0,transparent_32%)] px-3 py-5 pb-20 text-[#20252b] sm:px-4 sm:py-8">
+      <header className="mx-auto max-w-[1440px] border-b border-[#e3e7e9] pb-5 pl-14 sm:pb-7 sm:pl-0">
         <div className="flex items-center gap-3.5">
           <div>
             <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">
@@ -243,7 +243,7 @@ export default function SettingsPage() {
       <section className="mx-auto grid max-w-[1440px] gap-3.5 min-[761px]:grid-cols-2 min-[1024px]:grid-cols-3">
         {sections.map((section) => (
           <article
-            className="flex h-[350px] flex-col overflow-hidden border border-[#e3e7e9] bg-white p-[22px]"
+            className="flex min-h-[280px] flex-col overflow-hidden border border-[#e3e7e9] bg-white p-4 sm:h-[350px] sm:p-[22px]"
             key={section.type}
           >
             <div className="flex shrink-0 items-start justify-between gap-2.5 border-b border-[#e3e7e9] pb-[18px]">
@@ -264,7 +264,7 @@ export default function SettingsPage() {
             </div>
             {activeType === section.type && (
               <form
-                className="my-4 flex shrink-0 gap-[7px]"
+                className="my-4 grid shrink-0 grid-cols-[minmax(0,1fr)_64px] gap-[7px]"
                 onSubmit={handleSubmit}
               >
                 <input
