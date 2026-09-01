@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
         </div>
         <section className="grid gap-3 lg:grid-cols-[1.45fr_1fr]">
           <div className="grid min-w-0 gap-3 lg:grid-rows-2">
-            <div className="h-[330px] min-h-0 sm:h-full sm:min-h-[380px]"><WeeklyTaskChart /></div>
+            <div className="h-[480px] min-h-0 sm:h-[540px]"><WeeklyTaskChart /></div>
             <AverageWeekdayChart data={breakdowns.data.weekdays} loading={breakdowns.loading} error={breakdowns.error} />
           </div>
           <aside className="grid min-w-0 gap-3">

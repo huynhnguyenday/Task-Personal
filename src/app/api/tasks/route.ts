@@ -144,7 +144,6 @@ export async function POST(request: Request) {
     const description =
       typeof body.description === "string" ? body.description.trim() : "";
     const requiredFields = {
-      supportPerson: "Người cần hỗ trợ",
       category: "Danh mục",
       department: "Phòng ban",
       company: "Công ty",
@@ -173,7 +172,7 @@ export async function POST(request: Request) {
     const config = await resolveConfig(body);
     const task = await Task.create({
       description,
-      supportPerson: body.supportPerson.trim(),
+      supportPerson: typeof body.supportPerson === "string" ? body.supportPerson.trim() : "",
       ...config,
       notes: body.notes ?? "",
     });
@@ -204,7 +203,6 @@ export async function PUT(request: Request) {
       typeof body.createdAt === "string" ? body.createdAt : "";
     const createdAt = new Date(`${createdAtValue}T00:00:00.000Z`);
     const requiredFields = {
-      supportPerson: "Người cần hỗ trợ",
       category: "Danh mục",
       department: "Phòng ban",
       company: "Công ty",
@@ -230,6 +228,20 @@ export async function PUT(request: Request) {
       );
     }
 
+    if (typeof body.supportPerson !== "string" || !body.supportPerson.trim()) {
+      return NextResponse.json(
+        { error: "Người cần hỗ trợ không được để trống" },
+        { status: 400 },
+      );
+    }
+
+    if (typeof body.supportPerson !== "string" || !body.supportPerson.trim()) {
+      return NextResponse.json(
+        { error: "Người cần hỗ trợ là bắt buộc" },
+        { status: 400 },
+      );
+    }
+
     for (const [field, label] of Object.entries(requiredFields)) {
       const idField = `${field}Id`;
       if (typeof body[idField] !== "string" || !body[idField].trim()) {
@@ -246,7 +258,7 @@ export async function PUT(request: Request) {
       id,
       {
         description,
-        supportPerson: body.supportPerson.trim(),
+        supportPerson: typeof body.supportPerson === "string" ? body.supportPerson.trim() : "",
         ...config,
         notes: body.notes ?? "",
         createdAt,
