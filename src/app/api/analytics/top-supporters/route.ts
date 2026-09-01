@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getCurrentMonthRange } from "@/lib/analyticsDates";
 import { Task } from "@/models/Task";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
@@ -11,12 +12,13 @@ export async function GET() {
     const { start, end } = getCurrentMonthRange();
     const people = await Task.aggregate([
       { $match: { createdAt: { $gte: start, $lt: end }, supportPerson: { $ne: "" } } },
+      ...taskSettingsPipeline(),
       { $sort: { createdAt: -1 } },
       { $group: {
         _id: "$supportPerson",
         count: { $sum: 1 },
         departments: { $addToSet: "$department" },
-        tasks: { $push: { id: { $toString: "$_id" }, description: "$description", supportPerson: "$supportPerson", category: "$category", department: "$department", company: "$company", workplace: "$workplace", status: "$status", notes: "$notes", createdAt: "$createdAt" } },
+        tasks: { $push: { id: { $toString: "$_id" }, description: "$description", supportPerson: "$supportPerson", category: "$category", department: "$department", company: "$company", workplace: "$workplace", status: "$status", categoryId: { $toString: "$categoryId" }, departmentId: { $toString: "$departmentId" }, companyId: { $toString: "$companyId" }, workplaceId: { $toString: "$workplaceId" }, statusId: { $toString: "$statusId" }, notes: "$notes", createdAt: "$createdAt" } },
       } },
       { $sort: { count: -1, _id: 1 } },
       { $limit: 10 },

@@ -16,7 +16,8 @@ type SettingType =
   | "company"
   | "workplace"
   | "status";
-type Settings = Record<SettingType, string[]>;
+type SettingItem = { id: string; name: string };
+type Settings = Record<SettingType, SettingItem[]>;
 
 const sections: { type: SettingType; title: string; description: string }[] = [
   {
@@ -72,7 +73,7 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings?format=items")
       .then(async (response) => {
         if (!response.ok) throw new Error("load");
         setSettings(await response.json());
@@ -89,11 +90,11 @@ export default function SettingsPage() {
     setError("");
   }
 
-  function startEditing(type: SettingType, index: number, item: string) {
+  function startEditing(type: SettingType, index: number, item: SettingItem) {
     setActiveType(null);
     setDeletingItem(null);
     setEditingItem({ type, index });
-    setEditingName(item);
+    setEditingName(item.name);
     setError("");
   }
 
@@ -114,7 +115,7 @@ export default function SettingsPage() {
       const response = await fetch("/api/settings", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, name: item }),
+        body: JSON.stringify({ type, id: item.id }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -146,7 +147,7 @@ export default function SettingsPage() {
 
   async function saveEdit() {
     if (!editingItem || !editingName.trim()) return;
-    const oldName = settings[editingItem.type][editingItem.index];
+    const item = settings[editingItem.type][editingItem.index];
     setIsSaving(true);
     setError("");
     try {
@@ -155,7 +156,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: editingItem.type,
-          oldName,
+          id: item.id,
           name: editingName,
         }),
       });
@@ -165,7 +166,7 @@ export default function SettingsPage() {
       setSettings((current) => ({
         ...current,
         [editingItem.type]: current[editingItem.type].map((item, index) =>
-          index === editingItem.index ? result.name : item,
+          index === editingItem.index ? { id: String(result._id), name: result.name } : item,
         ),
       }));
       setEditingItem(null);
@@ -197,7 +198,7 @@ export default function SettingsPage() {
         throw new Error(result.error || "Không thể tạo cấu hình");
       setSettings((current) => ({
         ...current,
-        [activeType]: [...current[activeType], result.name],
+        [activeType]: [...current[activeType], { id: String(result._id), name: result.name }],
       }));
       setActiveType(null);
       setName("");
@@ -291,19 +292,19 @@ export default function SettingsPage() {
                   {settings[section.type].map((item, index) => (
                     <li
                       className={`flex items-center gap-2 px-[11px] py-[9px] text-[13px] transition-[height] duration-200 ${deletingItem?.type === section.type && deletingItem.index === index ? "min-h-12 bg-[#fae0e0] text-[#a34646]" : "bg-[#f5f7f5] text-[#515a60]"} ${editingItem?.type === section.type && editingItem.index === index ? "h-20" : "min-h-10"}`}
-                      key={item}
+                      key={item.id}
                     >
                       {deletingItem?.type === section.type &&
                       deletingItem.index === index ? (
                         <>
                           <span className="min-w-0 flex-1 truncate font-bold">
-                            Xóa “{item}”?
+                            Xóa “{item.name}”?
                           </span>
                           <div className="flex shrink-0 gap-1">
                             <button
                               className="grid h-8 w-8 place-items-center border-0 bg-[#bd4c4c] text-white transition hover:bg-[#a34646] disabled:cursor-wait disabled:opacity-60"
                               type="button"
-                              aria-label={`Đồng ý xóa ${item}`}
+                              aria-label={`Đồng ý xóa ${item.name}`}
                               title="Đồng ý xóa"
                               disabled={isDeleting}
                               onClick={() => void deleteSetting()}
@@ -360,11 +361,11 @@ export default function SettingsPage() {
                         </>
                       ) : (
                         <>
-                          <span className="min-w-0 flex-1">{item}</span>
+                          <span className="min-w-0 flex-1">{item.name}</span>
                           <button
                             className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#e3f0e9] hover:text-[#28745b]"
                             type="button"
-                            aria-label={`Sửa ${item}`}
+                            aria-label={`Sửa ${item.name}`}
                             onClick={() =>
                               startEditing(section.type, index, item)
                             }
@@ -374,7 +375,7 @@ export default function SettingsPage() {
                           <button
                             className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#fae0e0] hover:text-[#bd4c4c]"
                             type="button"
-                            aria-label={`Xóa ${item}`}
+                            aria-label={`Xóa ${item.name}`}
                             title="Xóa"
                             onClick={() => askToDelete(section.type, index)}
                           >

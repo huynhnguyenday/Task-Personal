@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getCurrentMonthRange } from "@/lib/analyticsDates";
 import { Task } from "@/models/Task";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ export async function GET() {
     const { start, end } = getCurrentMonthRange();
     const statuses = await Task.aggregate<{ _id: string; count: number }>([
       { $match: { createdAt: { $gte: start, $lt: end } } },
+      ...taskSettingsPipeline(),
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
     const result = { total: 0, inProgress: 0, waiting: 0, cancelled: 0, completed: 0 };

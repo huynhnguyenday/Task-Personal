@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getCurrentWeekRange } from "@/lib/analyticsDates";
 import { Task } from "@/models/Task";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
@@ -24,10 +25,11 @@ export async function GET(request: Request) {
     }
     const counts = await Task.aggregate<{ _id: string; count: number; tasks: { id: string; description: string; supportPerson: string; category: string; department: string; company: string; workplace: string; status: string; notes: string; createdAt: Date }[] }>([
       { $match: { createdAt: { $gte: start, $lt: end } } },
+      ...taskSettingsPipeline(),
       { $group: {
         _id: { $dateToString: { date: "$createdAt", format: "%Y-%m-%d", timezone: "Asia/Ho_Chi_Minh" } },
         count: { $sum: 1 },
-        tasks: { $push: { id: { $toString: "$_id" }, description: "$description", supportPerson: "$supportPerson", category: "$category", department: "$department", company: "$company", workplace: "$workplace", status: "$status", notes: "$notes", createdAt: "$createdAt" } },
+        tasks: { $push: { id: { $toString: "$_id" }, description: "$description", supportPerson: "$supportPerson", category: "$category", department: "$department", company: "$company", workplace: "$workplace", status: "$status", categoryId: { $toString: "$categoryId" }, departmentId: { $toString: "$departmentId" }, companyId: { $toString: "$companyId" }, workplaceId: { $toString: "$workplaceId" }, statusId: { $toString: "$statusId" }, notes: "$notes", createdAt: "$createdAt" } },
       } },
     ]);
     const countMap = new Map(counts.map((item) => [item._id, item]));

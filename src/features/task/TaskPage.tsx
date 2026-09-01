@@ -22,27 +22,33 @@ type Task = {
   company: string;
   workplace: string;
   status: TaskStatus;
+  categoryId: string;
+  departmentId: string;
+  companyId: string;
+  workplaceId: string;
+  statusId: string;
   notes: string;
   createdAt: string;
 };
-type TaskForm = Omit<Task, "_id" | "createdAt">;
+type TaskForm = Omit<Task, "_id" | "createdAt" | "category" | "department" | "company" | "workplace" | "status">;
 type EditingTaskForm = TaskForm & { createdAt: string };
+type SettingItem = { id: string; name: string };
 type Settings = {
-  category: string[];
-  department: string[];
-  company: string[];
-  workplace: string[];
-  status: string[];
+  category: SettingItem[];
+  department: SettingItem[];
+  company: SettingItem[];
+  workplace: SettingItem[];
+  status: SettingItem[];
 };
 
 const emptyForm: TaskForm = {
   description: "",
   supportPerson: "",
-  category: "",
-  department: "",
-  company: "",
-  workplace: "",
-  status: "",
+  categoryId: "",
+  departmentId: "",
+  companyId: "",
+  workplaceId: "",
+  statusId: "",
   notes: "",
 };
 const emptyEditingForm: EditingTaskForm = { ...emptyForm, createdAt: "" };
@@ -164,8 +170,7 @@ function createTaskQuery(
   const params = new URLSearchParams({ limit: String(TASKS_PER_PAGE) });
 
   for (const { key } of filterFields) {
-    const parameter = key === "description" ? "category" : key;
-    filters[key].forEach((value) => params.append(parameter, value));
+    filters[key].forEach((value) => params.append(key, value));
   }
 
   if (cursor) {
@@ -196,6 +201,34 @@ export default function Home() {
   const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
   const [activeFilters, setActiveFilters] =
     useState<Record<FilterKey, string[]>>(emptyFilters);
+  const [descriptionSearch, setDescriptionSearch] = useState("");
+  const [supportPersonSearch, setSupportPersonSearch] = useState("");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const value = descriptionSearch.trim();
+      setActiveFilters((current) => {
+        const currentValue = current.description[0] || "";
+        if (currentValue === value) return current;
+        return { ...current, description: value ? [value] : [] };
+      });
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
+  }, [descriptionSearch]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const value = supportPersonSearch.trim();
+      setActiveFilters((current) => {
+        const currentValue = current.supportPerson[0] || "";
+        if (currentValue === value) return current;
+        return { ...current, supportPerson: value ? [value] : [] };
+      });
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
+  }, [supportPersonSearch]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -235,7 +268,7 @@ export default function Home() {
   }, [activeFilters]);
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings?format=items")
       .then(async (response) => {
         if (!response.ok) throw new Error("settings");
         setSettings(await response.json());
@@ -313,11 +346,11 @@ export default function Home() {
     setEditingForm({
       description: task.description,
       supportPerson: task.supportPerson,
-      category: task.category,
-      department: task.department,
-      company: task.company,
-      workplace: task.workplace,
-      status: task.status,
+      categoryId: task.categoryId,
+      departmentId: task.departmentId,
+      companyId: task.companyId,
+      workplaceId: task.workplaceId,
+      statusId: task.statusId,
       notes: task.notes,
       createdAt: formatDateInput(task.createdAt),
     });
@@ -423,7 +456,6 @@ export default function Home() {
   }
 
   function getFilterValue(task: Task, key: FilterKey) {
-    if (key === "description") return task.category;
     if (key === "createdAt") return formatDate(task.createdAt);
     return task[key];
   }
@@ -438,10 +470,14 @@ export default function Home() {
   }
 
   function clearFilter(key: FilterKey) {
+    if (key === "description") setDescriptionSearch("");
+    if (key === "supportPerson") setSupportPersonSearch("");
     setActiveFilters((current) => ({ ...current, [key]: [] }));
   }
 
   function clearAllFilters() {
+    setDescriptionSearch("");
+    setSupportPersonSearch("");
     setActiveFilters({ ...emptyFilters });
     setOpenFilter(null);
   }
@@ -451,7 +487,11 @@ export default function Home() {
       const selectedValues = activeFilters[key];
       return (
         selectedValues.length === 0 ||
-        selectedValues.includes(getFilterValue(task, key))
+        (key === "description" || key === "supportPerson"
+          ? getFilterValue(task, key)
+              .toLocaleLowerCase("vi")
+              .includes(selectedValues[0].toLocaleLowerCase("vi"))
+          : selectedValues.includes(getFilterValue(task, key)))
       );
     }),
   );
@@ -460,11 +500,10 @@ export default function Home() {
   );
 
   function getFilterOptions(key: FilterKey) {
-    if (key === "description") return settings.category;
-    if (key === "department") return settings.department;
-    if (key === "company") return settings.company;
-    if (key === "workplace") return settings.workplace;
-    if (key === "status" && settings.status.length) return settings.status;
+    if (key === "department") return settings.department.map((item) => item.name);
+    if (key === "company") return settings.company.map((item) => item.name);
+    if (key === "workplace") return settings.workplace.map((item) => item.name);
+    if (key === "status" && settings.status.length) return settings.status.map((item) => item.name);
 
     return [...new Set(tasks.map((task) => getFilterValue(task, key)))].sort(
       (first, second) => first.localeCompare(second, "vi"),
@@ -609,7 +648,31 @@ export default function Home() {
                           </button>
                         )}
                       </div>
-                      {key === "createdAt" ? (
+                      {key === "description" || key === "supportPerson" ? (
+                        <input
+                          autoFocus
+                          className="min-w-[260px] border border-[#d9dfe0] bg-[#fafbfa] px-2.5 py-2 text-[13px] font-normal text-[#20252b] outline-none placeholder:text-[#9aa1a6] focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                          type="search"
+                          value={
+                            key === "description"
+                              ? descriptionSearch
+                              : supportPersonSearch
+                          }
+                          placeholder={
+                            key === "description"
+                              ? "Nhập mô tả công việc cần tìm..."
+                              : "Nhập tên người cần tìm..."
+                          }
+                          aria-label={`Tìm kiếm theo ${label.toLowerCase()}`}
+                          onChange={(event) => {
+                            if (key === "description") {
+                              setDescriptionSearch(event.target.value);
+                            } else {
+                              setSupportPersonSearch(event.target.value);
+                            }
+                          }}
+                        />
+                      ) : key === "createdAt" ? (
                         <label className="grid gap-1.5 text-xs">
                           <input
                             className="min-w-[180px] border border-[#d9dfe0] bg-[#fafbfa] px-2.5 py-2 text-[13px] text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
@@ -644,9 +707,7 @@ export default function Home() {
                               <span className="max-w-[220px] truncate">
                                 {key === "status"
                                   ? statusLabels[value] || value
-                                  : key === "description"
-                                    ? truncateDescription(value)
-                                    : value}
+                                  : value}
                               </span>
                             </label>
                           ))}
@@ -826,15 +887,15 @@ export default function Home() {
                           Danh mục
                           <select
                             className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                            value={editingForm.category}
+                            value={editingForm.categoryId}
                             onChange={(event) =>
-                              updateEditingForm("category", event.target.value)
+                              updateEditingForm("categoryId", event.target.value)
                             }
                           >
                             <option value="">Chọn danh mục</option>
                             {settings.category.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
+                              <option key={item.id} value={item.id}>
+                                {item.name}
                               </option>
                             ))}
                           </select>
@@ -843,18 +904,18 @@ export default function Home() {
                           Phòng ban
                           <select
                             className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                            value={editingForm.department}
+                            value={editingForm.departmentId}
                             onChange={(event) =>
                               updateEditingForm(
-                                "department",
+                                "departmentId",
                                 event.target.value,
                               )
                             }
                           >
                             <option value="">Chọn phòng ban</option>
                             {settings.department.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
+                              <option key={item.id} value={item.id}>
+                                {item.name}
                               </option>
                             ))}
                           </select>
@@ -863,15 +924,15 @@ export default function Home() {
                           Công ty
                           <select
                             className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                            value={editingForm.company}
+                            value={editingForm.companyId}
                             onChange={(event) =>
-                              updateEditingForm("company", event.target.value)
+                              updateEditingForm("companyId", event.target.value)
                             }
                           >
                             <option value="">Chọn công ty</option>
                             {settings.company.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
+                              <option key={item.id} value={item.id}>
+                                {item.name}
                               </option>
                             ))}
                           </select>
@@ -880,15 +941,15 @@ export default function Home() {
                           Nơi làm việc
                           <select
                             className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                            value={editingForm.workplace}
+                            value={editingForm.workplaceId}
                             onChange={(event) =>
-                              updateEditingForm("workplace", event.target.value)
+                              updateEditingForm("workplaceId", event.target.value)
                             }
                           >
                             <option value="">Chọn Tỉnh/thành</option>
                             {settings.workplace.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
+                              <option key={item.id} value={item.id}>
+                                {item.name}
                               </option>
                             ))}
                           </select>
@@ -897,14 +958,14 @@ export default function Home() {
                           Trạng thái
                           <select
                             className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
-                            value={editingForm.status}
+                            value={editingForm.statusId}
                             onChange={(event) =>
-                              updateEditingForm("status", event.target.value)
+                              updateEditingForm("statusId", event.target.value)
                             }
                           >
                             {(settings.status.length
                               ? settings.status.map(
-                                  (item) => [item, item] as const,
+                                  (item) => [item.id, item.name] as const,
                                 )
                               : Object.entries(statusLabels)
                             ).map(([value, label]) => (
@@ -1027,15 +1088,15 @@ export default function Home() {
                   <select
                     className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
                     required
-                    value={form.category}
+                    value={form.categoryId}
                     onChange={(event) =>
-                      updateForm("category", event.target.value)
+                      updateForm("categoryId", event.target.value)
                     }
                   >
                     <option value="">Chọn danh mục</option>
                     {settings.category.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.id} value={item.id}>
+                        {item.name}
                       </option>
                     ))}
                   </select>
@@ -1045,15 +1106,15 @@ export default function Home() {
                   <select
                     className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
                     required
-                    value={form.department}
+                    value={form.departmentId}
                     onChange={(event) =>
-                      updateForm("department", event.target.value)
+                      updateForm("departmentId", event.target.value)
                     }
                   >
                     <option value="">Chọn phòng ban</option>
                     {settings.department.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.id} value={item.id}>
+                        {item.name}
                       </option>
                     ))}
                   </select>
@@ -1063,15 +1124,15 @@ export default function Home() {
                   <select
                     className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
                     required
-                    value={form.company}
+                    value={form.companyId}
                     onChange={(event) =>
-                      updateForm("company", event.target.value)
+                      updateForm("companyId", event.target.value)
                     }
                   >
                     <option value="">Chọn công ty</option>
                     {settings.company.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.id} value={item.id}>
+                        {item.name}
                       </option>
                     ))}
                   </select>
@@ -1081,15 +1142,15 @@ export default function Home() {
                   <select
                     className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
                     required
-                    value={form.workplace}
+                    value={form.workplaceId}
                     onChange={(event) =>
-                      updateForm("workplace", event.target.value)
+                      updateForm("workplaceId", event.target.value)
                     }
                   >
                     <option value="">Chọn Tỉnh/thành</option>
                     {settings.workplace.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.id} value={item.id}>
+                        {item.name}
                       </option>
                     ))}
                   </select>
@@ -1099,14 +1160,14 @@ export default function Home() {
                   <select
                     className="w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 py-[11px] text-[13px] font-normal text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
                     required
-                    value={form.status}
+                    value={form.statusId}
                     onChange={(event) =>
-                      updateForm("status", event.target.value)
+                      updateForm("statusId", event.target.value)
                     }
                   >
                     <option value="">Chọn trạng thái</option>
                     {(settings.status.length
-                      ? settings.status.map((item) => [item, item] as const)
+                      ? settings.status.map((item) => [item.id, item.name] as const)
                       : Object.entries(statusLabels)
                     ).map(([value, label]) => (
                       <option key={value} value={value}>

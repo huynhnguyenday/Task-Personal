@@ -1,11 +1,47 @@
 import { NextResponse } from "next/server";
-import type { QueryFilter } from "mongoose";
+import { Types, type QueryFilter } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
-import { Task, type TaskDocument, type TaskStatus } from "@/models/Task";
+import { Task, type TaskDocument } from "@/models/Task";
+import { SETTING_TYPES, Setting } from "@/models/Setting";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
 const TASKS_PER_PAGE = 20;
+const CONFIG_FIELDS = SETTING_TYPES;
+
+async function resolveConfig(body: Record<string, unknown>) {
+  const values: Record<string, unknown> = {};
+  for (const type of CONFIG_FIELDS) {
+    const idKey = `${type}Id`;
+    const id = typeof body[idKey] === "string" ? body[idKey].trim() : "";
+    const setting = id ? await Setting.findOne({ _id: id, type }).lean() : null;
+    if (!setting) throw new Error(`INVALID_CONFIG:${type}`);
+    values[idKey] = setting._id;
+  }
+  return values;
+}
+
+async function loadTask(id: Types.ObjectId | string) {
+  const [task] = await Task.aggregate([
+    { $match: { _id: typeof id === "string" ? new Types.ObjectId(id) : id } },
+    ...taskSettingsPipeline(),
+  ]);
+  return task ? serializeTask(task) : null;
+}
+
+function serializeTask(task: Record<string, unknown>) {
+  const result = { ...task };
+  for (const type of CONFIG_FIELDS) {
+    const value = result[`${type}Id`];
+    result[`${type}Id`] = value ? String(value) : "";
+  }
+  return result;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +52,6 @@ export async function GET(request: Request) {
     const clauses: QueryFilter<TaskDocument>[] = [];
     const fieldFilters = [
       ["category", "category"],
-      ["supportPerson", "supportPerson"],
       ["department", "department"],
       ["company", "company"],
       ["workplace", "workplace"],
@@ -25,7 +60,24 @@ export async function GET(request: Request) {
 
     for (const [parameter, field] of fieldFilters) {
       const values = searchParams.getAll(parameter).filter(Boolean);
-      if (values.length) clauses.push({ [field]: { $in: values } });
+      if (values.length) {
+        const settingIds = await Setting.find({ type: field, name: { $in: values } }).distinct("_id");
+        clauses.push({ [`${field}Id`]: { $in: settingIds } });
+      }
+    }
+
+    const description = searchParams.get("description")?.trim();
+    if (description) {
+      clauses.push({
+        description: { $regex: escapeRegExp(description), $options: "i" },
+      });
+    }
+
+    const supportPerson = searchParams.get("supportPerson")?.trim();
+    if (supportPerson) {
+      clauses.push({
+        supportPerson: { $regex: escapeRegExp(supportPerson), $options: "i" },
+      });
     }
 
     const selectedDates = searchParams.getAll("createdAt").filter(Boolean);
@@ -58,27 +110,18 @@ export async function GET(request: Request) {
       ? { $and: clauses }
       : {};
 
-    const tasks = await Task.find(query)
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(TASKS_PER_PAGE + 1)
-      .select({
-        description: 1,
-        supportPerson: 1,
-        category: 1,
-        department: 1,
-        company: 1,
-        workplace: 1,
-        status: 1,
-        notes: 1,
-        createdAt: 1,
-      })
-      .lean();
+    const tasks = await Task.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1, _id: -1 } },
+      { $limit: TASKS_PER_PAGE + 1 },
+      ...taskSettingsPipeline(),
+    ]);
     const hasMore = tasks.length > TASKS_PER_PAGE;
     const pageTasks = tasks.slice(0, TASKS_PER_PAGE);
     const lastTask = pageTasks.at(-1);
 
     return NextResponse.json({
-      tasks: pageTasks,
+      tasks: pageTasks.map((task) => serializeTask(task as unknown as Record<string, unknown>)),
       hasMore,
       nextCursor: lastTask
         ? {
@@ -117,7 +160,8 @@ export async function POST(request: Request) {
     }
 
     for (const [field, label] of Object.entries(requiredFields)) {
-      if (typeof body[field] !== "string" || !body[field].trim()) {
+      const idField = `${field}Id`;
+      if (typeof body[idField] !== "string" || !body[idField].trim()) {
         return NextResponse.json(
           { error: `${label} là bắt buộc` },
           { status: 400 },
@@ -125,24 +169,19 @@ export async function POST(request: Request) {
       }
     }
 
-    const status = body.status as TaskStatus;
-
     await connectToDatabase();
+    const config = await resolveConfig(body);
     const task = await Task.create({
       description,
       supportPerson: body.supportPerson.trim(),
-      category: body.category.trim(),
-      department: body.department.trim(),
-      company: body.company.trim(),
-      workplace: body.workplace.trim(),
-      status,
+      ...config,
       notes: body.notes ?? "",
     });
 
-    return NextResponse.json(task, { status: 201 });
+    return NextResponse.json(await loadTask(task._id), { status: 201 });
   } catch (error) {
     console.error("POST /api/tasks failed:", error);
-    if (error instanceof Error && error.name === "ValidationError") {
+    if (error instanceof Error && (error.name === "ValidationError" || error.message.startsWith("INVALID_CONFIG:"))) {
       return NextResponse.json(
         { error: "Dữ liệu công việc không hợp lệ" },
         { status: 400 },
@@ -192,7 +231,8 @@ export async function PUT(request: Request) {
     }
 
     for (const [field, label] of Object.entries(requiredFields)) {
-      if (typeof body[field] !== "string" || !body[field].trim()) {
+      const idField = `${field}Id`;
+      if (typeof body[idField] !== "string" || !body[idField].trim()) {
         return NextResponse.json(
           { error: `${label} là bắt buộc` },
           { status: 400 },
@@ -200,19 +240,14 @@ export async function PUT(request: Request) {
       }
     }
 
-    const status = body.status as TaskStatus;
-
     await connectToDatabase();
+    const config = await resolveConfig(body);
     const task = await Task.findByIdAndUpdate(
       id,
       {
         description,
         supportPerson: body.supportPerson.trim(),
-        category: body.category.trim(),
-        department: body.department.trim(),
-        company: body.company.trim(),
-        workplace: body.workplace.trim(),
-        status,
+        ...config,
         notes: body.notes ?? "",
         createdAt,
       },
@@ -226,8 +261,11 @@ export async function PUT(request: Request) {
       );
     }
 
-    return NextResponse.json(task);
-  } catch {
+    return NextResponse.json(await loadTask(task._id));
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("INVALID_CONFIG:")) {
+      return NextResponse.json({ error: "Cấu hình công việc không hợp lệ" }, { status: 400 });
+    }
     return NextResponse.json(
       { error: "Không thể cập nhật công việc" },
       { status: 500 },

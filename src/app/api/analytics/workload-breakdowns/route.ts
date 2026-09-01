@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Task } from "@/models/Task";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,7 @@ export async function GET() {
   try {
     await connectToDatabase();
     const [result] = await Task.aggregate<BreakdownAggregation>([
+      ...taskSettingsPipeline(),
       {
         $facet: {
           weekdays: [

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Task } from "@/models/Task";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,7 @@ export async function GET() {
   try {
     await connectToDatabase();
     const totals = await Task.aggregate<{ _id: string; count: number }>([
+      ...taskSettingsPipeline(),
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 

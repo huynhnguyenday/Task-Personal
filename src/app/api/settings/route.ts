@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { SETTING_TYPES, Setting, type SettingType } from "@/models/Setting";
+import { Task } from "@/models/Task";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await connectToDatabase();
     const items = await Setting.find().sort({ name: 1 }).lean();
+    const includeIds = new URL(request.url).searchParams.get("format") === "items";
     const grouped = {
       category: [],
       department: [],
       company: [],
       workplace: [],
       status: [],
-    } as Record<SettingType, string[]>;
+    } as Record<SettingType, unknown[]>;
 
-    for (const item of items) grouped[item.type].push(item.name);
+    for (const item of items) grouped[item.type].push(includeIds ? { id: item._id.toString(), name: item.name } : item.name);
     return NextResponse.json(grouped);
   } catch {
     return NextResponse.json(
@@ -62,9 +64,10 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const type = body.type as SettingType;
     const oldName = typeof body.oldName === "string" ? body.oldName.trim() : "";
+    const id = typeof body.id === "string" ? body.id : "";
     const name = typeof body.name === "string" ? body.name.trim() : "";
 
-    if (!SETTING_TYPES.includes(type) || !oldName || !name) {
+    if (!SETTING_TYPES.includes(type) || (!id && !oldName) || !name) {
       return NextResponse.json(
         { error: "Loại, tên cũ và tên mới là bắt buộc" },
         { status: 400 },
@@ -73,7 +76,7 @@ export async function PUT(request: Request) {
 
     await connectToDatabase();
     const item = await Setting.findOneAndUpdate(
-      { type, name: oldName },
+      id ? { _id: id, type } : { type, name: oldName },
       { name },
       { new: true, runValidators: true },
     ).lean();
@@ -106,8 +109,9 @@ export async function DELETE(request: Request) {
     const body = await request.json();
     const type = body.type as SettingType;
     const name = typeof body.name === "string" ? body.name.trim() : "";
+    const id = typeof body.id === "string" ? body.id : "";
 
-    if (!SETTING_TYPES.includes(type) || !name) {
+    if (!SETTING_TYPES.includes(type) || (!id && !name)) {
       return NextResponse.json(
         { error: "Loại và tên cấu hình là bắt buộc" },
         { status: 400 },
@@ -115,7 +119,7 @@ export async function DELETE(request: Request) {
     }
 
     await connectToDatabase();
-    const item = await Setting.findOneAndDelete({ type, name }).lean();
+    const item = await Setting.findOne(id ? { _id: id, type } : { type, name }).lean();
 
     if (!item) {
       return NextResponse.json(
@@ -124,7 +128,11 @@ export async function DELETE(request: Request) {
       );
     }
 
-    return NextResponse.json({ type, name });
+    if (await Task.exists({ [`${type}Id`]: item._id })) {
+      return NextResponse.json({ error: "Cấu hình đang được task sử dụng nên không thể xóa" }, { status: 409 });
+    }
+    await Setting.deleteOne({ _id: item._id });
+    return NextResponse.json({ type, name: item.name });
   } catch {
     return NextResponse.json(
       { error: "Không thể xóa cấu hình" },

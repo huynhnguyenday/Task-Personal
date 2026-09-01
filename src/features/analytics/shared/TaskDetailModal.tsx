@@ -5,18 +5,27 @@ import { faBriefcase, faBuilding, faCalendarDay, faFloppyDisk, faLayerGroup, faL
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { TaskDetail } from "./types";
 
-type EditForm = Omit<TaskDetail, "id">;
+type EditForm = Pick<TaskDetail, "description" | "supportPerson" | "categoryId" | "departmentId" | "companyId" | "workplaceId" | "statusId" | "notes" | "createdAt">;
+type SettingItem = { id: string; name: string };
+type Settings = Record<"category" | "department" | "company" | "workplace" | "status", SettingItem[]>;
+const emptySettings: Settings = { category: [], department: [], company: [], workplace: [], status: [] };
 
 const detailFields = [
   { key: "supportPerson", label: "Người cần hỗ trợ", icon: faUser },
-  { key: "category", label: "Danh mục", icon: faLayerGroup },
-  { key: "department", label: "Phòng ban", icon: faBriefcase },
-  { key: "company", label: "Công ty", icon: faBuilding },
-  { key: "workplace", label: "Nơi làm việc", icon: faLocationDot },
+  { key: "category", idKey: "categoryId", label: "Danh mục", icon: faLayerGroup },
+  { key: "department", idKey: "departmentId", label: "Phòng ban", icon: faBriefcase },
+  { key: "company", idKey: "companyId", label: "Công ty", icon: faBuilding },
+  { key: "workplace", idKey: "workplaceId", label: "Nơi làm việc", icon: faLocationDot },
+] as const;
+const configFields = [
+  { key: "category", idKey: "categoryId", label: "Danh mục", icon: faLayerGroup },
+  { key: "department", idKey: "departmentId", label: "Phòng ban", icon: faBriefcase },
+  { key: "company", idKey: "companyId", label: "Công ty", icon: faBuilding },
+  { key: "workplace", idKey: "workplaceId", label: "Nơi làm việc", icon: faLocationDot },
 ] as const;
 
 function toForm(task: TaskDetail): EditForm {
-  return { description: task.description, supportPerson: task.supportPerson, category: task.category, department: task.department, company: task.company, workplace: task.workplace, status: task.status, notes: task.notes, createdAt: new Date(task.createdAt).toISOString().slice(0, 10) };
+  return { description: task.description, supportPerson: task.supportPerson, categoryId: task.categoryId, departmentId: task.departmentId, companyId: task.companyId, workplaceId: task.workplaceId, statusId: task.statusId, notes: task.notes, createdAt: new Date(task.createdAt).toISOString().slice(0, 10) };
 }
 
 type ModalProps = { task: TaskDetail | null; onClose: () => void; onTaskUpdated?: (task: TaskDetail) => void };
@@ -31,6 +40,11 @@ function TaskDetailContent({ task, onClose, onTaskUpdated }: { task: TaskDetail;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<EditForm>(() => toForm(task));
+  const [settings, setSettings] = useState<Settings>(emptySettings);
+
+  useEffect(() => {
+    fetch("/api/settings?format=items").then((response) => response.ok ? response.json() : Promise.reject()).then(setSettings).catch(() => setError("Không thể tải cấu hình."));
+  }, []);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -50,7 +64,7 @@ function TaskDetailContent({ task, onClose, onTaskUpdated }: { task: TaskDetail;
       const response = await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: task.id, ...form }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể cập nhật task.");
-      const updated: TaskDetail = { id: String(result._id), description: result.description, supportPerson: result.supportPerson, category: result.category, department: result.department, company: result.company, workplace: result.workplace, status: result.status, notes: result.notes ?? "", createdAt: result.createdAt };
+      const updated: TaskDetail = { id: String(result._id), description: result.description, supportPerson: result.supportPerson, category: result.category, department: result.department, company: result.company, workplace: result.workplace, status: result.status, categoryId: result.categoryId, departmentId: result.departmentId, companyId: result.companyId, workplaceId: result.workplaceId, statusId: result.statusId, notes: result.notes ?? "", createdAt: result.createdAt };
       setForm(toForm(updated));
       setEditing(false);
       onTaskUpdated?.(updated);
@@ -79,9 +93,10 @@ function TaskDetailContent({ task, onClose, onTaskUpdated }: { task: TaskDetail;
           <form className="p-5 sm:p-7" onSubmit={save}>
             <label className="block text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]">Mô tả công việc<textarea className="mt-2 min-h-24 w-full resize-y border border-[#cfd7d3] bg-white p-3 text-sm font-semibold text-[#30383d] outline-none focus:border-[#28745b]" value={form.description} onChange={(event) => updateField("description", event.target.value)} required /></label>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {detailFields.map((field) => <label key={field.key} className="text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]"><span className="flex items-center gap-2"><FontAwesomeIcon className="text-[#28745b]" icon={field.icon} />{field.label}</span><input className={fieldClass} value={form[field.key]} onChange={(event) => updateField(field.key, event.target.value)} required /></label>)}
+              <label className="text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]"><span className="flex items-center gap-2"><FontAwesomeIcon className="text-[#28745b]" icon={faUser} />Người cần hỗ trợ</span><input className={fieldClass} value={form.supportPerson} onChange={(event) => updateField("supportPerson", event.target.value)} required /></label>
+              {configFields.map((field) => <label key={field.key} className="text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]"><span className="flex items-center gap-2"><FontAwesomeIcon className="text-[#28745b]" icon={field.icon} />{field.label}</span><select className={fieldClass} value={form[field.idKey]} onChange={(event) => updateField(field.idKey, event.target.value)} required><option value="">Chọn {field.label.toLowerCase()}</option>{settings[field.key].map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>)}
               <label className="text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]"><span className="flex items-center gap-2"><FontAwesomeIcon className="text-[#28745b]" icon={faCalendarDay} />Ngày tạo</span><input className={fieldClass} type="date" value={form.createdAt} onChange={(event) => updateField("createdAt", event.target.value)} required /></label>
-              <label className="text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]">Trạng thái<input className={fieldClass} value={form.status} onChange={(event) => updateField("status", event.target.value)} required /></label>
+              <label className="text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]">Trạng thái<select className={fieldClass} value={form.statusId} onChange={(event) => updateField("statusId", event.target.value)} required><option value="">Chọn trạng thái</option>{settings.status.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             </div>
             <label className="mt-4 block text-[10px] font-bold uppercase tracking-[1px] text-[#515a60]">Ghi chú<textarea className="mt-2 min-h-20 w-full resize-y border border-[#cfd7d3] bg-white p-3 text-sm font-medium text-[#30383d] outline-none focus:border-[#28745b]" value={form.notes} onChange={(event) => updateField("notes", event.target.value)} /></label>
             {error && <p className="mt-3 text-xs font-semibold text-[#bd4c4c]">{error}</p>}

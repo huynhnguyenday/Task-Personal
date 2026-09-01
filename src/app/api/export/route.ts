@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Task } from "@/models/Task";
+import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,11 @@ export async function GET(request: Request) {
     if (!from || !to || from > to) return NextResponse.json({ error: "Khoảng thời gian không hợp lệ" }, { status: 400 });
 
     await connectToDatabase();
-    const tasks = (await Task.find({ createdAt: { $gte: from, $lte: to } }).sort({ createdAt: 1, _id: 1 }).lean())
+    const tasks = (await Task.aggregate([
+      { $match: { createdAt: { $gte: from, $lte: to } } },
+      { $sort: { createdAt: 1, _id: 1 } },
+      ...taskSettingsPipeline(),
+    ]))
       .filter((task) => isExportable(task.status));
 
     if (searchParams.get("preview") === "1") {

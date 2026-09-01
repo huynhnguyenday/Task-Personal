@@ -7,6 +7,11 @@ export type TaskDetail = {
   company: string;
   workplace: string;
   status: string;
+  categoryId: string;
+  departmentId: string;
+  companyId: string;
+  workplaceId: string;
+  statusId: string;
   notes: string;
   createdAt: string;
 };
