@@ -69,26 +69,26 @@ export default function AnalyticsPage() {
   }, [loadMonthlyAnalytics]);
 
   return (
-    <main className="scrollbar-analytics h-dvh w-full min-w-0 overflow-y-auto bg-[#f5f7f5] px-3 py-4 pb-20 text-[#20252b] sm:px-6 sm:py-5">
-      <header className="mx-auto flex w-full max-w-[1440px] shrink-0 items-end justify-between border-b border-[#dce2de] pb-4 pl-14 sm:pl-0">
-        <div><p className="text-[10px] font-bold tracking-[1.5px] text-[#28745b]">PERSONAL WORKSPACE</p><h1 className="mt-1 text-xl font-semibold sm:text-2xl">Phân tích công việc</h1></div>
-        <p className="hidden text-xs font-semibold text-[#515a60] sm:block">Dữ liệu tự động cập nhật theo tháng hiện tại</p>
+    <main className="scrollbar-analytics h-dvh w-full min-w-0 overflow-y-auto bg-[#f5f7f5] px-3 py-4 pb-20 text-[#20252b] md:px-5 md:py-5 xl:px-6">
+      <header className="mx-auto flex w-full max-w-[1440px] shrink-0 items-end justify-between border-b border-[#dce2de] pb-4 pl-14 md:pl-0">
+        <div><p className="text-[10px] font-bold tracking-[1.5px] text-[#28745b]">PERSONAL WORKSPACE</p><h1 className="mt-1 text-xl font-semibold md:text-2xl">Phân tích công việc</h1></div>
+        <p className="hidden text-xs font-semibold text-[#515a60] md:block">Dữ liệu tự động cập nhật theo tháng hiện tại</p>
       </header>
       <div className="mx-auto mt-4 flex w-full max-w-[1440px] flex-col gap-3 pb-4">
         {error && <p className="shrink-0 text-xs text-[#a34646]">{error}</p>}
-        <div className="grid min-w-0 shrink-0 gap-2.5 lg:grid-cols-[1fr_2fr]">
-          <MonthlyStatusCards data={monthly} loading={monthlyLoading} className="grid grid-cols-2 gap-2.5 lg:grid-cols-1" />
-          <PairedMetricCards />
+        <div className="grid min-w-0 shrink-0 grid-cols-2 gap-2.5 lg:grid-cols-6 lg:grid-rows-2">
+          <MonthlyStatusCards data={monthly} loading={monthlyLoading} className="col-span-2 grid grid-cols-2 gap-2.5 lg:row-span-2 lg:grid-rows-2" />
+          <PairedMetricCards className="col-span-2 grid min-w-0 grid-cols-2 gap-2.5 lg:contents" />
         </div>
-        <section className="grid gap-3 lg:grid-cols-[1.45fr_1fr]">
-          <div className="grid min-w-0 gap-3 lg:grid-rows-2">
-            <div className="h-[480px] min-h-0 sm:h-[540px]"><WeeklyTaskChart /></div>
-            <AverageWeekdayChart data={breakdowns.data.weekdays} loading={breakdowns.loading} error={breakdowns.error} />
+        <section className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(280px,1fr)] xl:grid-cols-3 xl:grid-rows-[clamp(420px,52vh,500px)_380px]">
+          <div className="grid min-w-0 gap-3 md:grid-rows-2 xl:contents">
+            <div className="h-[480px] min-h-0 md:h-[500px] xl:col-span-2 xl:row-start-1 xl:h-full"><WeeklyTaskChart /></div>
+            <div className="min-h-0 xl:col-start-1 xl:row-start-2"><AverageWeekdayChart data={breakdowns.data.weekdays} loading={breakdowns.loading} error={breakdowns.error} /></div>
           </div>
-          <aside className="grid min-w-0 gap-3">
-            <div className="h-[390px] min-h-0 sm:h-[430px]"><TopSupportersTable data={supporters} loading={supportersLoading} onTaskUpdated={loadMonthlyAnalytics} /></div>
-            <WorkloadRankingTable eyebrow="PHÂN BỔ THEO PHÒNG BAN" title="Tổng công việc của các phòng ban" filterType="department" data={breakdowns.data.departments} loading={breakdowns.loading} error={breakdowns.error} />
-            <WorkloadRankingTable eyebrow="PHÂN BỔ THEO DANH MỤC" title="Tổng công việc theo danh mục" filterType="category" data={breakdowns.data.categories} loading={breakdowns.loading} error={breakdowns.error} />
+          <aside className="grid min-w-0 gap-3 xl:contents">
+            <div className="h-[390px] min-h-0 md:h-[410px] xl:col-start-3 xl:row-start-1 xl:h-full"><TopSupportersTable data={supporters} loading={supportersLoading} onTaskUpdated={loadMonthlyAnalytics} /></div>
+            <div className="min-h-0 xl:col-start-2 xl:row-start-2"><WorkloadRankingTable eyebrow="PHÂN BỔ THEO PHÒNG BAN" title="Tổng công việc của các phòng ban" filterType="department" data={breakdowns.data.departments} loading={breakdowns.loading} error={breakdowns.error} /></div>
+            <div className="min-h-0 xl:col-start-3 xl:row-start-2"><WorkloadRankingTable eyebrow="PHÂN BỔ THEO DANH MỤC" title="Tổng công việc theo danh mục" filterType="category" data={breakdowns.data.categories} loading={breakdowns.loading} error={breakdowns.error} /></div>
           </aside>
         </section>
       </div>

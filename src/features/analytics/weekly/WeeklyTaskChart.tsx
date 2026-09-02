@@ -55,7 +55,7 @@ export default function WeeklyTaskChart() {
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 639px)");
+    const media = window.matchMedia("(max-width: 767px)");
     const syncMobile = () => setIsMobile(media.matches);
     syncMobile();
     media.addEventListener("change", syncMobile);
