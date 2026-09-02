@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { Task, type TaskDocument } from "@/models/Task";
 import { SETTING_TYPES, Setting } from "@/models/Setting";
 import { taskSettingsPipeline } from "@/lib/taskSettingsPipeline";
+import { invalidateAnalyticsSnapshot } from "@/lib/analyticsSnapshot";
 
 export const runtime = "nodejs";
 
@@ -177,6 +178,7 @@ export async function POST(request: Request) {
       notes: body.notes ?? "",
     });
 
+    invalidateAnalyticsSnapshot();
     return NextResponse.json(await loadTask(task._id), { status: 201 });
   } catch (error) {
     console.error("POST /api/tasks failed:", error);
@@ -273,6 +275,7 @@ export async function PUT(request: Request) {
       );
     }
 
+    invalidateAnalyticsSnapshot();
     return NextResponse.json(await loadTask(task._id));
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("INVALID_CONFIG:")) {
@@ -306,6 +309,7 @@ export async function DELETE(request: Request) {
       );
     }
 
+    invalidateAnalyticsSnapshot();
     return NextResponse.json({ id });
   } catch {
     return NextResponse.json(

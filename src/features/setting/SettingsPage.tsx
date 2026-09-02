@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowRightArrowLeft,
   faCheck,
   faPencil,
   faTrashCan,
@@ -65,12 +66,19 @@ export default function SettingsPage() {
     type: SettingType;
     index: number;
   } | null>(null);
+  const [transferringItem, setTransferringItem] = useState<{
+    type: SettingType;
+    index: number;
+  } | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState("");
   const [editingName, setEditingName] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     fetch("/api/settings?format=items")
@@ -83,6 +91,7 @@ export default function SettingsPage() {
   }, []);
 
   function startAdding(type: SettingType) {
+    setTransferringItem(null);
     setEditingItem(null);
     setDeletingItem(null);
     setActiveType(type);
@@ -91,6 +100,7 @@ export default function SettingsPage() {
   }
 
   function startEditing(type: SettingType, index: number, item: SettingItem) {
+    setTransferringItem(null);
     setActiveType(null);
     setDeletingItem(null);
     setEditingItem({ type, index });
@@ -99,10 +109,57 @@ export default function SettingsPage() {
   }
 
   function askToDelete(type: SettingType, index: number) {
+    setTransferringItem(null);
     setActiveType(null);
     setEditingItem(null);
     setDeletingItem({ type, index });
     setError("");
+  }
+
+  function startTransferring(type: SettingType, index: number) {
+    const firstTarget = settings[type].find((_, itemIndex) => itemIndex !== index);
+    setActiveType(null);
+    setEditingItem(null);
+    setDeletingItem(null);
+    setTransferringItem({ type, index });
+    setTransferTargetId(firstTarget?.id ?? "");
+    setError("");
+    setNotice("");
+  }
+
+  async function transferSetting() {
+    if (!transferringItem || !transferTargetId) return;
+    const source = settings[transferringItem.type][transferringItem.index];
+    const target = settings[transferringItem.type].find((item) => item.id === transferTargetId);
+    if (!source || !target) return;
+
+    setIsTransferring(true);
+    setError("");
+    try {
+      const response = await fetch("/api/settings/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: transferringItem.type,
+          sourceId: source.id,
+          targetId: target.id,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Không thể chuyển giao dữ liệu");
+      const transferredCount = Number(result.transferredCount) || 0;
+      setNotice(
+        transferredCount > 0
+          ? `Đã chuyển ${transferredCount} công việc từ “${source.name}” sang “${target.name}”.`
+          : `Không có công việc nào thuộc “${source.name}” để chuyển.`,
+      );
+      setTransferringItem(null);
+      setTransferTargetId("");
+    } catch (transferError) {
+      setError(transferError instanceof Error ? transferError.message : "Không thể chuyển giao dữ liệu");
+    } finally {
+      setIsTransferring(false);
+    }
   }
 
   async function deleteSetting() {
@@ -240,6 +297,11 @@ export default function SettingsPage() {
           {error}
         </p>
       )}
+      {notice && (
+        <p className="mx-auto mb-4 max-w-[1440px] border border-[#b9d8cb] bg-[#e3f0e9] px-3 py-2.5 text-[13px] text-[#1e604a]">
+          {notice}
+        </p>
+      )}
       <section className="mx-auto grid max-w-[1440px] gap-3.5 min-[761px]:grid-cols-2 min-[1024px]:grid-cols-3">
         {sections.map((section) => (
           <article
@@ -363,6 +425,16 @@ export default function SettingsPage() {
                         <>
                           <span className="min-w-0 flex-1">{item.name}</span>
                           <button
+                            className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#e3f0e9] hover:text-[#28745b] disabled:cursor-not-allowed disabled:opacity-35"
+                            type="button"
+                            aria-label={`Chuyển giao dữ liệu từ ${item.name}`}
+                            title="Chuyển giao"
+                            disabled={settings[section.type].length < 2}
+                            onClick={() => startTransferring(section.type, index)}
+                          >
+                            <FontAwesomeIcon icon={faArrowRightArrowLeft} />
+                          </button>
+                          <button
                             className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#e3f0e9] hover:text-[#28745b]"
                             type="button"
                             aria-label={`Sửa ${item.name}`}
@@ -398,6 +470,52 @@ export default function SettingsPage() {
           </article>
         ))}
       </section>
+      {transferringItem && (() => {
+        const section = sections.find((item) => item.type === transferringItem.type);
+        const source = settings[transferringItem.type][transferringItem.index];
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#17221dcc] p-0 sm:items-center sm:p-6" role="presentation">
+            <section
+              className="w-full max-w-[560px] border border-[#d9dfe0] bg-white p-5 shadow-2xl sm:p-7"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transfer-title"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">CHUYỂN GIAO</p>
+                  <h2 id="transfer-title" className="text-lg">Chuyển dữ liệu {section?.title.toLowerCase()}</h2>
+                </div>
+                <button className="grid h-9 w-9 shrink-0 place-items-center text-[#727a82] hover:bg-[#f5f7f5]" type="button" aria-label="Đóng" onClick={() => setTransferringItem(null)} disabled={isTransferring}>
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-[#515a60]">
+                Toàn bộ công việc đang dùng <strong className="text-[#20252b]">{source.name}</strong> sẽ được chuyển sang giá trị đích bên dưới. Giá trị nguồn vẫn được giữ lại.
+              </p>
+              <label className="mt-5 block text-xs font-bold uppercase tracking-[0.8px] text-[#515a60]" htmlFor="transfer-target">Chuyển đến</label>
+              <select
+                id="transfer-target"
+                className="mt-2 h-12 w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                value={transferTargetId}
+                onChange={(event) => setTransferTargetId(event.target.value)}
+                disabled={isTransferring}
+              >
+                {settings[transferringItem.type].filter((item) => item.id !== source.id).map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              {error && <p className="mt-3 text-[13px] text-[#a34646]">{error}</p>}
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button className="h-11 border border-[#d9dfe0] bg-white px-5 text-sm text-[#515a60] hover:bg-[#f5f7f5] disabled:opacity-60" type="button" onClick={() => setTransferringItem(null)} disabled={isTransferring}>Hủy</button>
+                <button className="h-11 bg-[#28745b] px-5 text-sm font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60" type="button" onClick={() => void transferSetting()} disabled={isTransferring || !transferTargetId}>
+                  {isTransferring ? "Đang chuyển..." : "Xác nhận chuyển giao"}
+                </button>
+              </div>
+            </section>
+          </div>
+        );
+      })()}
     </main>
   );
 }

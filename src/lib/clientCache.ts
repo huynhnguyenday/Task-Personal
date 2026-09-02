@@ -21,3 +21,12 @@ export function writeClientCache<T>(key: string, value: T) {
     // Analytics must still work when storage is disabled or full.
   }
 }
+
+export function areCacheValuesEqual(left: unknown, right: unknown) {
+  if (Object.is(left, right)) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}

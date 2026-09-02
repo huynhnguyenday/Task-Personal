@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { readClientCache, writeClientCache } from "@/lib/clientCache";
+import { areCacheValuesEqual, readClientCache, writeClientCache } from "@/lib/clientCache";
 
 export type WorkloadMetric = "total" | "monthly" | "weekly" | "daily";
 export const RECORDING_START = "2026-08-14";
@@ -13,23 +13,17 @@ const pendingRequests = new Map<string, Promise<number>>();
 
 function loadMetric(metric: WorkloadMetric, date: string) {
   const key = `${metric}:${date}`;
-  const cached = metricCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
-  const stored = readClientCache<number>(`analytics:metric:${key}`, CACHE_TTL);
-  if (stored?.fresh) {
-    metricCache.set(key, { value: stored.value, expiresAt: Date.now() + CACHE_TTL });
-    return Promise.resolve(stored.value);
-  }
-
   const pending = pendingRequests.get(key);
   if (pending) return pending;
 
-  const request = fetch(`/api/analytics/workload-comparison?metric=${metric}&date=${date}`)
+  const request = fetch(`/api/analytics/workload-comparison?metric=${metric}&date=${date}`, { cache: "no-store" })
     .then(async (response) => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể tải chỉ số");
+      const cacheKey = `analytics:metric:${key}`;
+      const previous = metricCache.get(key)?.value ?? readClientCache<number>(cacheKey, CACHE_TTL)?.value;
       metricCache.set(key, { value: result.value, expiresAt: Date.now() + CACHE_TTL });
-      writeClientCache(`analytics:metric:${key}`, result.value);
+      if (!areCacheValuesEqual(previous, result.value)) writeClientCache(cacheKey, result.value);
       return result.value as number;
     })
     .finally(() => pendingRequests.delete(key));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { readClientCache, writeClientCache } from "@/lib/clientCache";
+import { areCacheValuesEqual, readClientCache, writeClientCache } from "@/lib/clientCache";
 
 export type OverallSummary = {
   total: number;
@@ -23,15 +23,16 @@ export function useOverallSummary() {
     const cached = readClientCache<OverallSummary>(CACHE_KEY, CACHE_TTL);
     if (cached) {
       queueMicrotask(() => { setData(cached.value); setLoading(false); });
-      if (cached.fresh) return;
     }
     const controller = new AbortController();
-    fetch("/api/analytics/overall-summary", { signal: controller.signal })
+    fetch("/api/analytics/overall-summary", { signal: controller.signal, cache: "no-store" })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Không thể tải thống kê tổng quan");
-        setData(result);
-        writeClientCache(CACHE_KEY, result);
+        if (!cached || !areCacheValuesEqual(cached.value, result)) {
+          setData(result);
+          writeClientCache(CACHE_KEY, result);
+        }
       })
       .catch((loadError) => {
         if (loadError instanceof DOMException && loadError.name === "AbortError") return;

@@ -10,6 +10,10 @@ const SNAPSHOT_TTL = 30_000;
 let cached: { value: AnalyticsSnapshot; expiresAt: number } | null = null;
 let pending: Promise<AnalyticsSnapshot> | null = null;
 
+export function invalidateAnalyticsSnapshot() {
+  cached = null;
+}
+
 /** Deduplicates the all-time scan shared by overview and comparison cards. */
 export function getAnalyticsSnapshot() {
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);

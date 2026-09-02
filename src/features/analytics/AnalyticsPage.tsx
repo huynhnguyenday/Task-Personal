@@ -7,7 +7,7 @@ import TopSupportersTable from "./supporters/TopSupportersTable";
 import PairedMetricCards from "./PairedMetricCards";
 import type { MonthlyStatus } from "./monthly-status/types";
 import type { Supporter } from "./supporters/types";
-import { readClientCache, writeClientCache } from "@/lib/clientCache";
+import { areCacheValuesEqual, readClientCache, writeClientCache } from "@/lib/clientCache";
 import { Skeleton } from "@/components/LoadingSkeleton";
 import { useWorkloadBreakdowns } from "./breakdowns/useWorkloadBreakdowns";
 import AverageWeekdayChart from "./breakdowns/AverageWeekdayChart";
@@ -30,32 +30,42 @@ export default function AnalyticsPage() {
   const [error, setError] = useState("");
   const breakdowns = useWorkloadBreakdowns();
 
-  const loadMonthlyAnalytics = useCallback((force = true) => {
+  const loadMonthlyAnalytics = useCallback(() => {
     const monthlyCache = readClientCache<MonthlyStatus>(MONTHLY_CACHE_KEY, ANALYTICS_CACHE_TTL);
     const supportersCache = readClientCache<Supporter[]>(SUPPORTERS_CACHE_KEY, ANALYTICS_CACHE_TTL);
 
     if (monthlyCache) { setMonthly(monthlyCache.value); setMonthlyLoading(false); }
     if (supportersCache) { setSupporters(supportersCache.value); setSupportersLoading(false); }
 
-    if (force || !monthlyCache?.fresh) {
-      fetch("/api/analytics/monthly-status")
+    {
+      fetch("/api/analytics/monthly-status", { cache: "no-store" })
         .then(async (response) => { if (!response.ok) throw new Error("monthly"); return response.json() as Promise<MonthlyStatus>; })
-        .then((data) => { setMonthly(data); writeClientCache(MONTHLY_CACHE_KEY, data); })
+        .then((data) => {
+          if (!monthlyCache || !areCacheValuesEqual(monthlyCache.value, data)) {
+            setMonthly(data);
+            writeClientCache(MONTHLY_CACHE_KEY, data);
+          }
+        })
         .catch(() => setError("Chưa thể tải đầy đủ dữ liệu thống kê."))
         .finally(() => setMonthlyLoading(false));
     }
 
-    if (force || !supportersCache?.fresh) {
-      fetch("/api/analytics/top-supporters")
+    {
+      fetch("/api/analytics/top-supporters", { cache: "no-store" })
         .then(async (response) => { if (!response.ok) throw new Error("supporters"); return response.json() as Promise<Supporter[]>; })
-        .then((data) => { setSupporters(data); writeClientCache(SUPPORTERS_CACHE_KEY, data); })
+        .then((data) => {
+          if (!supportersCache || !areCacheValuesEqual(supportersCache.value, data)) {
+            setSupporters(data);
+            writeClientCache(SUPPORTERS_CACHE_KEY, data);
+          }
+        })
         .catch(() => setError("Chưa thể tải đầy đủ dữ liệu thống kê."))
         .finally(() => setSupportersLoading(false));
     }
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => loadMonthlyAnalytics(false));
+    queueMicrotask(() => loadMonthlyAnalytics());
   }, [loadMonthlyAnalytics]);
 
   return (
@@ -76,9 +86,9 @@ export default function AnalyticsPage() {
             <AverageWeekdayChart data={breakdowns.data.weekdays} loading={breakdowns.loading} error={breakdowns.error} />
           </div>
           <aside className="grid min-w-0 gap-3">
-            <div className="h-[390px] min-h-0 sm:h-[430px]"><TopSupportersTable data={supporters} loading={supportersLoading} onTaskUpdated={() => loadMonthlyAnalytics(true)} /></div>
-            <WorkloadRankingTable eyebrow="PHÂN BỔ THEO PHÒNG BAN" title="Tổng công việc của các phòng ban" data={breakdowns.data.departments} loading={breakdowns.loading} error={breakdowns.error} />
-            <WorkloadRankingTable eyebrow="PHÂN BỔ THEO DANH MỤC" title="Tổng công việc theo danh mục" data={breakdowns.data.categories} loading={breakdowns.loading} error={breakdowns.error} />
+            <div className="h-[390px] min-h-0 sm:h-[430px]"><TopSupportersTable data={supporters} loading={supportersLoading} onTaskUpdated={loadMonthlyAnalytics} /></div>
+            <WorkloadRankingTable eyebrow="PHÂN BỔ THEO PHÒNG BAN" title="Tổng công việc của các phòng ban" filterType="department" data={breakdowns.data.departments} loading={breakdowns.loading} error={breakdowns.error} />
+            <WorkloadRankingTable eyebrow="PHÂN BỔ THEO DANH MỤC" title="Tổng công việc theo danh mục" filterType="category" data={breakdowns.data.categories} loading={breakdowns.loading} error={breakdowns.error} />
           </aside>
         </section>
       </div>
