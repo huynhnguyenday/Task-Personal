@@ -132,8 +132,16 @@ export async function GET(request: Request) {
 
     const reportTable = worksheet.getTable("BaoCaoTuanTable");
     if (reportTable) {
-      reportTable.ref = `A7:Q${Math.max(8, 7 + tasks.length)}`;
-      reportTable.commit();
+      // Tables loaded from an existing XLSX do not have the in-memory `rows`
+      // collection that ExcelJS' public ref setter expects. Calling the setter
+      // therefore crashes in cacheState() before the workbook can be written.
+      // The XLSX writer uses these two model ranges directly.
+      const tableRange = `A7:Q${Math.max(8, 7 + tasks.length)}`;
+      const tableModel = (reportTable as unknown as {
+        model: { tableRef: string; autoFilterRef: string };
+      }).model;
+      tableModel.tableRef = tableRange;
+      tableModel.autoFilterRef = tableRange;
     }
 
     const output = await workbook.xlsx.writeBuffer();
