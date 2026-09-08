@@ -208,6 +208,27 @@ export default function Home() {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!editingTaskId) return;
+    const taskGroup = document.querySelector<HTMLElement>(`[data-task-group="${editingTaskId}"]`);
+    const frame = window.requestAnimationFrame(() => {
+      taskGroup?.scrollIntoView({ block: "center", inline: "nearest" });
+    });
+    const closeWhenClickingOutside = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest(`[data-task-group="${editingTaskId}"]`) && !isSaving) {
+        setEditingTaskId(null);
+        setEditingForm(emptyEditingForm);
+        setError("");
+      }
+    };
+    document.addEventListener("pointerdown", closeWhenClickingOutside, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("pointerdown", closeWhenClickingOutside, true);
+    };
+  }, [editingTaskId, isSaving]);
+
+  useEffect(() => {
     const timeout = window.setTimeout(() => {
       const value = descriptionSearch.trim();
       setActiveFilters((current) => {
@@ -576,7 +597,7 @@ export default function Home() {
                 key={summary.tone}
                 title={`Trạng thái: ${summary.label}`}
               >
-                  <strong className="justify-self-end text-right text-[27px] leading-none text-current sm:mr-1 sm:text-[30px]">
+                <strong className="justify-self-end text-right text-[27px] leading-none text-current sm:mr-1 sm:text-[30px]">
                   {summary.count}
                 </strong>
                 <span className="text-left text-[11px] font-bold leading-[1.05] sm:text-xs">
@@ -590,7 +611,7 @@ export default function Home() {
             ))}
           </div>
           <button
-            className="grid h-[56px] w-full shrink-0 place-items-center border-0 bg-[#28745b] text-2xl font-light text-white transition hover:bg-[#1e604a] sm:h-[62px] sm:w-[52px] sm:text-3xl"
+            className="grid h-[56px] w-full shrink-0 place-items-center border-0 bg-[#349575] text-2xl font-light text-white transition hover:bg-[#1e604a] sm:h-[62px] sm:w-[52px] sm:text-3xl"
             onClick={openModal}
             type="button"
             aria-label="Thêm công việc"
@@ -614,10 +635,157 @@ export default function Home() {
         ) : (
           <div className="md:min-w-[1000px]">
             <div className="mb-3 flex items-center justify-between border border-[#d9dfe0] bg-white p-2 md:hidden">
-              <div><p className="text-xs font-bold text-[#20252b]">Bộ lọc công việc</p><p className="mt-0.5 text-[10px] text-[#727a82]">{hasActiveFilters ? "Đang áp dụng bộ lọc" : "Hiển thị tất cả công việc"}</p></div>
-              <button className={`relative grid h-10 w-10 place-items-center ${hasActiveFilters ? "bg-[#28745b] text-white" : "bg-[#e3f0e9] text-[#28745b]"}`} type="button" aria-label="Mở bộ lọc" onClick={() => setIsMobileFilterOpen(true)}><FontAwesomeIcon icon={faFilter} />{hasActiveFilters && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#fff4cc]" />}</button>
+              <div>
+                <p className="text-xs font-bold text-[#20252b]">
+                  Bộ lọc công việc
+                </p>
+                <p className="mt-0.5 text-[10px] text-[#727a82]">
+                  {hasActiveFilters
+                    ? "Đang áp dụng bộ lọc"
+                    : "Hiển thị tất cả công việc"}
+                </p>
+              </div>
+              <button
+                className={`relative grid h-10 w-10 place-items-center ${hasActiveFilters ? "bg-[#28745b] text-white" : "bg-[#e3f0e9] text-[#28745b]"}`}
+                type="button"
+                aria-label="Mở bộ lọc"
+                onClick={() => setIsMobileFilterOpen(true)}
+              >
+                <FontAwesomeIcon icon={faFilter} />
+                {hasActiveFilters && (
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#fff4cc]" />
+                )}
+              </button>
             </div>
-            {isMobileFilterOpen && <div className="fixed inset-0 z-[90] flex items-end bg-[#17251d]/55 md:hidden" role="dialog" aria-modal="true" aria-label="Bộ lọc công việc" onMouseDown={() => setIsMobileFilterOpen(false)}><section className="max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}><header className="mb-4 flex items-center justify-between border-b border-[#e3e7e9] pb-3"><div><p className="text-[10px] font-bold tracking-[1.4px] text-[#28745b]">BỘ LỌC</p><h2 className="mt-1 text-lg font-semibold">Lọc danh sách công việc</h2></div><button className="grid h-9 w-9 place-items-center bg-[#f5f7f5] text-[#515a60]" type="button" aria-label="Đóng bộ lọc" onClick={() => setIsMobileFilterOpen(false)}><FontAwesomeIcon icon={faXmark} /></button></header><div className="grid gap-3"><label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]"><span>Mô tả</span><input className="h-10 min-w-0 border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm font-normal outline-none focus:border-[#28745b]" type="search" value={descriptionSearch} onChange={(event) => setDescriptionSearch(event.target.value)} placeholder="Tìm công việc..." /></label><label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]"><span>Người hỗ trợ</span><input className="h-10 min-w-0 border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm font-normal outline-none focus:border-[#28745b]" type="search" value={supportPersonSearch} onChange={(event) => setSupportPersonSearch(event.target.value)} placeholder="Nhập tên..." /></label>{(["department", "company", "workplace", "status"] as const).map((key) => <label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]" key={key}><span>{filterFields.find((field) => field.key === key)?.label}</span><select className="h-10 min-w-0 border border-[#d9dfe0] bg-white px-2 text-sm font-normal" value={activeFilters[key][0] || ""} onChange={(event) => setActiveFilters((current) => ({ ...current, [key]: event.target.value ? [event.target.value] : [] }))}><option value="">Tất cả</option>{getFilterOptions(key).map((value) => <option key={value} value={value}>{statusLabels[value] || value}</option>)}</select></label>)}<label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]"><span>Ngày tạo</span><input className="h-10 min-w-0 border border-[#d9dfe0] bg-white px-2 text-sm font-normal" type="date" value={filterValueToDateInput(activeFilters.createdAt[0] || "")} onChange={(event) => { const value = dateInputToFilterValue(event.target.value); setActiveFilters((current) => ({ ...current, createdAt: value ? [value] : [] })); }} /></label></div><footer className="mt-5 grid grid-cols-2 gap-2"><button className="h-11 border border-[#d9dfe0] bg-white text-sm font-bold text-[#515a60] disabled:opacity-50" type="button" disabled={!hasActiveFilters} onClick={clearAllFilters}>Xóa tất cả</button><button className="h-11 bg-[#28745b] text-sm font-bold text-white" type="button" onClick={() => setIsMobileFilterOpen(false)}>Áp dụng</button></footer></section></div>}
+            {isMobileFilterOpen && (
+              <div
+                className="fixed inset-0 z-[90] flex items-end bg-[#17251d]/55 md:hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Bộ lọc công việc"
+                onMouseDown={() => setIsMobileFilterOpen(false)}
+              >
+                <section
+                  className="max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-6 shadow-2xl"
+                  onMouseDown={(event) => event.stopPropagation()}
+                >
+                  <header className="mb-4 flex items-center justify-between border-b border-[#e3e7e9] pb-3">
+                    <div>
+                      <p className="text-[10px] font-bold tracking-[1.4px] text-[#28745b]">
+                        BỘ LỌC
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold">
+                        Lọc danh sách công việc
+                      </h2>
+                    </div>
+                    <button
+                      className="grid h-9 w-9 place-items-center bg-[#f5f7f5] text-[#515a60]"
+                      type="button"
+                      aria-label="Đóng bộ lọc"
+                      onClick={() => setIsMobileFilterOpen(false)}
+                    >
+                      <FontAwesomeIcon icon={faXmark} />
+                    </button>
+                  </header>
+                  <div className="grid gap-3">
+                    <label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]">
+                      <span>Mô tả</span>
+                      <input
+                        className="h-10 min-w-0 border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm font-normal outline-none focus:border-[#28745b]"
+                        type="search"
+                        value={descriptionSearch}
+                        onChange={(event) =>
+                          setDescriptionSearch(event.target.value)
+                        }
+                        placeholder="Tìm công việc..."
+                      />
+                    </label>
+                    <label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]">
+                      <span>Người hỗ trợ</span>
+                      <input
+                        className="h-10 min-w-0 border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm font-normal outline-none focus:border-[#28745b]"
+                        type="search"
+                        value={supportPersonSearch}
+                        onChange={(event) =>
+                          setSupportPersonSearch(event.target.value)
+                        }
+                        placeholder="Nhập tên..."
+                      />
+                    </label>
+                    {(
+                      ["department", "company", "workplace", "status"] as const
+                    ).map((key) => (
+                      <label
+                        className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]"
+                        key={key}
+                      >
+                        <span>
+                          {
+                            filterFields.find((field) => field.key === key)
+                              ?.label
+                          }
+                        </span>
+                        <select
+                          className="h-10 min-w-0 border border-[#d9dfe0] bg-white px-2 text-sm font-normal"
+                          value={activeFilters[key][0] || ""}
+                          onChange={(event) =>
+                            setActiveFilters((current) => ({
+                              ...current,
+                              [key]: event.target.value
+                                ? [event.target.value]
+                                : [],
+                            }))
+                          }
+                        >
+                          <option value="">Tất cả</option>
+                          {getFilterOptions(key).map((value) => (
+                            <option key={value} value={value}>
+                              {statusLabels[value] || value}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                    <label className="grid grid-cols-[105px_minmax(0,1fr)] items-center gap-3 text-xs font-bold text-[#515a60]">
+                      <span>Ngày tạo</span>
+                      <input
+                        className="h-10 min-w-0 border border-[#d9dfe0] bg-white px-2 text-sm font-normal"
+                        type="date"
+                        value={filterValueToDateInput(
+                          activeFilters.createdAt[0] || "",
+                        )}
+                        onChange={(event) => {
+                          const value = dateInputToFilterValue(
+                            event.target.value,
+                          );
+                          setActiveFilters((current) => ({
+                            ...current,
+                            createdAt: value ? [value] : [],
+                          }));
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <footer className="mt-5 grid grid-cols-2 gap-2">
+                    <button
+                      className="h-11 border border-[#d9dfe0] bg-white text-sm font-bold text-[#515a60] disabled:opacity-50"
+                      type="button"
+                      disabled={!hasActiveFilters}
+                      onClick={clearAllFilters}
+                    >
+                      Xóa tất cả
+                    </button>
+                    <button
+                      className="h-11 bg-[#28745b] text-sm font-bold text-white"
+                      type="button"
+                      onClick={() => setIsMobileFilterOpen(false)}
+                    >
+                      Áp dụng
+                    </button>
+                  </footer>
+                </section>
+              </div>
+            )}
             <div className="hidden grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] items-center gap-4 px-4 pb-3 text-[12px] font-bold uppercase tracking-[1.2px] text-[#727a82] md:grid">
               {filterFields.map(({ key, label }) => (
                 <div className="relative" data-filter-key={key} key={key}>
@@ -754,7 +922,7 @@ export default function Home() {
                   </div>
                 )}
                 {filteredTasks.map((task) => (
-                  <div key={task._id}>
+                  <div key={task._id} data-task-group={task._id}>
                     {deletingTaskId === task._id ? (
                       <article className="my-2 flex min-h-12 items-center justify-between gap-4 bg-[#fae0e0] px-4 py-2 text-[13px] text-[#a34646] transition-all">
                         <span className="min-w-0 truncate font-bold">
@@ -785,7 +953,16 @@ export default function Home() {
                       </article>
                     ) : (
                       <article
-                        className={`relative my-2 grid grid-cols-2 items-center gap-x-3 gap-y-2.5 border-l-4 px-3 py-3 text-[12px] font-bold text-[#515a60] transition-all md:grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] md:gap-4 md:border-l-0 md:px-4 md:py-4 md:text-[13px] ${getStatusTone(task.status) === "green" ? "border-[#28745b] bg-[#e3f0e9]" : getStatusTone(task.status) === "yellow" ? "border-[#d39b00] bg-[#fff4cc]" : getStatusTone(task.status) === "red" ? "border-[#bd4c4c] bg-[#fae0e0]" : "border-[#7c4db3] bg-[#f1e7ff]"}`}
+                        className={`relative my-2 grid cursor-pointer grid-cols-2 items-center gap-x-3 gap-y-2.5 border-l-4 px-3 py-3 text-[12px] font-bold text-[#515a60] transition-colors md:grid-cols-[minmax(240px,2.2fr)_minmax(150px,1.35fr)_minmax(130px,1.15fr)_minmax(130px,1.15fr)_minmax(140px,1.2fr)_minmax(125px,1fr)_minmax(140px,1.15fr)_80px] md:gap-4 md:border-l-0 md:px-4 md:py-4 md:text-[13px] ${getStatusTone(task.status) === "green" ? "border-[#28745b] bg-[#e3f0e9] hover:bg-[#cfe5d9]" : getStatusTone(task.status) === "yellow" ? "border-[#d39b00] bg-[#fff4cc] hover:bg-[#f8e9ad]" : getStatusTone(task.status) === "red" ? "border-[#bd4c4c] bg-[#fae0e0] hover:bg-[#f2caca]" : "border-[#7c4db3] bg-[#f1e7ff] hover:bg-[#e5d3f8]"}`}
+                        onClick={(event) => {
+                          if (
+                            (event.target as HTMLElement).closest(
+                              "button, input, select, textarea, a",
+                            )
+                          )
+                            return;
+                          if (editingTaskId !== task._id) startEditing(task);
+                        }}
                       >
                         <div className="col-span-2 min-w-0 pl-4 md:col-span-1 md:flex md:items-center md:gap-2.5 md:pl-0">
                           <span
@@ -806,33 +983,100 @@ export default function Home() {
                           </div>
                         </div>
                         <span className="col-span-2 grid min-w-0 truncate pl-4 md:col-span-1 md:pl-0">
-                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Người hỗ trợ</small>
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">
+                            Người hỗ trợ
+                          </small>
                           {task.supportPerson || "-"}
                         </span>
-                        <span className={`${expandedTaskId === task._id ? "grid" : "hidden"} min-w-0 truncate pl-4 md:grid md:pl-0`}>
-                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Phòng ban</small>
+                        <span
+                          className={`${expandedTaskId === task._id ? "grid" : "hidden"} min-w-0 truncate pl-4 md:grid md:pl-0`}
+                        >
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">
+                            Phòng ban
+                          </small>
                           {task.department || "-"}
                         </span>
-                        <span className={`${expandedTaskId === task._id ? "grid" : "hidden"} min-w-0 truncate pl-4 md:grid md:pl-0`}><small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Công ty</small>{task.company || "-"}</span>
-                        <span className={`${expandedTaskId === task._id ? "grid" : "hidden"} min-w-0 truncate pl-4 md:grid md:pl-0`}>
-                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Nơi làm việc</small>
+                        <span
+                          className={`${expandedTaskId === task._id ? "grid" : "hidden"} min-w-0 truncate pl-4 md:grid md:pl-0`}
+                        >
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">
+                            Công ty
+                          </small>
+                          {task.company || "-"}
+                        </span>
+                        <span
+                          className={`${expandedTaskId === task._id ? "grid" : "hidden"} min-w-0 truncate pl-4 md:grid md:pl-0`}
+                        >
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">
+                            Nơi làm việc
+                          </small>
                           {task.workplace || "-"}
                         </span>
-                        <span className={`${expandedTaskId === task._id ? "grid" : "hidden"} col-span-2 min-w-0 truncate pl-4 md:hidden`}><small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82]">Danh mục</small>{task.category || "-"}</span>
+                        <span
+                          className={`${expandedTaskId === task._id ? "grid" : "hidden"} col-span-2 min-w-0 truncate pl-4 md:hidden`}
+                        >
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82]">
+                            Danh mục
+                          </small>
+                          {task.category || "-"}
+                        </span>
                         <time
                           className="grid whitespace-nowrap pl-4 text-[12px] md:pl-0"
                           dateTime={task.createdAt}
                         >
-                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Ngày tạo</small>{formatDate(task.createdAt)}
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">
+                            Ngày tạo
+                          </small>
+                          {formatDate(task.createdAt)}
                         </time>
                         <div className="grid min-w-0 gap-0.5 pl-4 md:pl-0">
-                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">Trạng thái</small>
-                          <span className={`w-fit px-2 py-1 text-[12px] font-bold ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9] text-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff0e7] text-[#ae5d32]" : getStatusTone(task.status) === "red" ? "bg-[#fae8e8] text-[#a34646]" : "bg-[#f1e7ff] text-[#7c4db3]"}`} title={`Trạng thái: ${statusLabels[task.status] || task.status}`}>{statusLabels[task.status] || task.status}</span>
+                          <small className="text-[9px] font-bold uppercase tracking-wide text-[#727a82] md:hidden">
+                            Trạng thái
+                          </small>
+                          <span
+                            className={`w-fit px-2 py-1 text-[12px] font-bold ${getStatusTone(task.status) === "green" ? "bg-[#e3f0e9] text-[#28745b]" : getStatusTone(task.status) === "yellow" ? "bg-[#fff0e7] text-[#ae5d32]" : getStatusTone(task.status) === "red" ? "bg-[#fae8e8] text-[#a34646]" : "bg-[#f1e7ff] text-[#7c4db3]"}`}
+                            title={`Trạng thái: ${statusLabels[task.status] || task.status}`}
+                          >
+                            {statusLabels[task.status] || task.status}
+                          </span>
                         </div>
                         <div className="col-span-2 flex items-center justify-between border-t border-black/5 pt-1 md:hidden">
-                          <button className="grid h-9 w-9 place-items-center text-sm text-[#727a82] transition hover:bg-white/70 hover:text-[#bd4c4c]" type="button" aria-label={`Xóa công việc ${task.description}`} title="Xóa công việc" onClick={() => askToDeleteTask(task._id)}><FontAwesomeIcon icon={faTrashCan} /></button>
-                          <button className="inline-flex h-9 items-center gap-2 px-3 text-[10px] font-bold uppercase tracking-wide text-[#515a60]" type="button" aria-expanded={expandedTaskId === task._id} onClick={() => setExpandedTaskId((current) => current === task._id ? null : task._id)}>{expandedTaskId === task._id ? "Thu gọn" : "Chi tiết"}<FontAwesomeIcon className={`transition-transform ${expandedTaskId === task._id ? "rotate-180" : ""}`} icon={faChevronDown} /></button>
-                          <button className="grid h-9 w-9 place-items-center text-sm text-[#727a82] transition hover:bg-white/70 hover:text-[#28745b]" type="button" aria-label={`Sửa công việc ${task.description}`} title="Sửa công việc" onClick={() => startEditing(task)}><FontAwesomeIcon icon={faPencil} /></button>
+                          <button
+                            className="grid h-9 w-9 place-items-center text-sm text-[#727a82] transition hover:bg-white/70 hover:text-[#bd4c4c]"
+                            type="button"
+                            aria-label={`Xóa công việc ${task.description}`}
+                            title="Xóa công việc"
+                            onClick={() => askToDeleteTask(task._id)}
+                          >
+                            <FontAwesomeIcon icon={faTrashCan} />
+                          </button>
+                          <button
+                            className="inline-flex h-9 items-center gap-2 px-3 text-[10px] font-bold uppercase tracking-wide text-[#515a60]"
+                            type="button"
+                            aria-expanded={expandedTaskId === task._id}
+                            onClick={() =>
+                              setExpandedTaskId((current) =>
+                                current === task._id ? null : task._id,
+                              )
+                            }
+                          >
+                            {expandedTaskId === task._id
+                              ? "Thu gọn"
+                              : "Chi tiết"}
+                            <FontAwesomeIcon
+                              className={`transition-transform ${expandedTaskId === task._id ? "rotate-180" : ""}`}
+                              icon={faChevronDown}
+                            />
+                          </button>
+                          <button
+                            className="grid h-9 w-9 place-items-center text-sm text-[#727a82] transition hover:bg-white/70 hover:text-[#28745b]"
+                            type="button"
+                            aria-label={`Sửa công việc ${task.description}`}
+                            title="Sửa công việc"
+                            onClick={() => startEditing(task)}
+                          >
+                            <FontAwesomeIcon icon={faPencil} />
+                          </button>
                         </div>
                         <div className="hidden items-center gap-1 md:flex">
                           <button
@@ -900,7 +1144,10 @@ export default function Home() {
                             required
                             value={editingForm.categoryId}
                             onChange={(event) =>
-                              updateEditingForm("categoryId", event.target.value)
+                              updateEditingForm(
+                                "categoryId",
+                                event.target.value,
+                              )
                             }
                           >
                             <option value="">Chọn danh mục</option>
@@ -957,7 +1204,10 @@ export default function Home() {
                             required
                             value={editingForm.workplaceId}
                             onChange={(event) =>
-                              updateEditingForm("workplaceId", event.target.value)
+                              updateEditingForm(
+                                "workplaceId",
+                                event.target.value,
+                              )
                             }
                           >
                             <option value="">Chọn Tỉnh/thành</option>
@@ -1013,16 +1263,16 @@ export default function Home() {
                             }
                           />
                         </label>
-                        <div className="flex items-end justify-end gap-2 lg:col-span-2">
+                        <div className="col-span-full flex items-end justify-center gap-2 mt-4">
                           <button
-                            className="border border-[#e3e7e9] bg-white px-[17px] py-[11px] text-[#727a82] hover:border-[#a34646] hover:text-[#a34646]"
+                            className="border border-[#e3e7e9] bg-white px-[17px] py-[11px] text-[#535d66] hover:border-[#d83939] hover:text-[#d83939]"
                             type="button"
                             onClick={cancelEditing}
                           >
-                            Hủy
+                            Hủy thay đổi
                           </button>
                           <button
-                            className="border-0 bg-[#28745b] px-[17px] py-[11px] font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60"
+                            className="border-0 bg-[#349575] px-[17px] py-[11px] font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60"
                             type="submit"
                             disabled={isSaving}
                           >
@@ -1034,7 +1284,11 @@ export default function Home() {
                   </div>
                 ))}
                 {isLoadingMore && (
-                  <div className="grid gap-3 border-t border-[#edf0ee] px-4 py-4" role="status" aria-label="Đang tải thêm công việc">
+                  <div
+                    className="grid gap-3 border-t border-[#edf0ee] px-4 py-4"
+                    role="status"
+                    aria-label="Đang tải thêm công việc"
+                  >
                     <Skeleton className="h-3 w-full" />
                     <Skeleton className="h-3 w-4/5" />
                   </div>
@@ -1182,7 +1436,9 @@ export default function Home() {
                   >
                     <option value="">Chọn trạng thái</option>
                     {(settings.status.length
-                      ? settings.status.map((item) => [item.id, item.name] as const)
+                      ? settings.status.map(
+                          (item) => [item.id, item.name] as const,
+                        )
                       : Object.entries(statusLabels)
                     ).map(([value, label]) => (
                       <option key={value} value={value}>

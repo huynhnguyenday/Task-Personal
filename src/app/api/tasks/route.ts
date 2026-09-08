@@ -12,15 +12,25 @@ const TASKS_PER_PAGE = 20;
 const CONFIG_FIELDS = SETTING_TYPES;
 
 async function resolveConfig(body: Record<string, unknown>) {
-  const values: Record<string, unknown> = {};
-  for (const type of CONFIG_FIELDS) {
+  const requested = CONFIG_FIELDS.map((type) => {
     const idKey = `${type}Id`;
     const id = typeof body[idKey] === "string" ? body[idKey].trim() : "";
-    const setting = id ? await Setting.findOne({ _id: id, type }).lean() : null;
-    if (!setting) throw new Error(`INVALID_CONFIG:${type}`);
-    values[idKey] = setting._id;
+    if (!Types.ObjectId.isValid(id)) throw new Error(`INVALID_CONFIG:${type}`);
+    return { type, idKey, id };
+  });
+  const settings = await Setting.find({
+    _id: { $in: requested.map((item) => new Types.ObjectId(item.id)) },
+  }).lean();
+  const settingsById = new Map(settings.map((setting) => [setting._id.toString(), setting]));
+  const values: Record<string, Types.ObjectId> = {};
+  const names: Record<string, string> = {};
+  for (const item of requested) {
+    const setting = settingsById.get(item.id);
+    if (!setting || setting.type !== item.type) throw new Error(`INVALID_CONFIG:${item.type}`);
+    values[item.idKey] = setting._id;
+    names[item.type] = setting.name;
   }
-  return values;
+  return { values, names };
 }
 
 async function loadTask(id: Types.ObjectId | string) {
@@ -174,12 +184,16 @@ export async function POST(request: Request) {
     const task = await Task.create({
       description,
       supportPerson: typeof body.supportPerson === "string" ? body.supportPerson.trim() : "",
-      ...config,
+      ...config.values,
       notes: body.notes ?? "",
     });
 
     invalidateAnalyticsSnapshot();
-    return NextResponse.json(await loadTask(task._id), { status: 201 });
+    return NextResponse.json({
+      ...task.toObject(),
+      ...config.names,
+      ...Object.fromEntries(CONFIG_FIELDS.map((type) => [`${type}Id`, String(task[`${type}Id` as keyof typeof task] ?? "")])),
+    }, { status: 201 });
   } catch (error) {
     console.error("POST /api/tasks failed:", error);
     if (error instanceof Error && (error.name === "ValidationError" || error.message.startsWith("INVALID_CONFIG:"))) {
@@ -261,7 +275,7 @@ export async function PUT(request: Request) {
       {
         description,
         supportPerson: typeof body.supportPerson === "string" ? body.supportPerson.trim() : "",
-        ...config,
+        ...config.values,
         notes: body.notes ?? "",
         createdAt,
       },
