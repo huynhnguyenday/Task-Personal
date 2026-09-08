@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRightArrowLeft,
   faCheck,
+  faMagnifyingGlass,
   faPencil,
   faTrashCan,
   faXmark,
@@ -17,8 +18,9 @@ type SettingType =
   | "company"
   | "workplace"
   | "status";
-type SettingItem = { id: string; name: string };
+type SettingItem = { id: string; name: string; taskCount: number };
 type Settings = Record<SettingType, SettingItem[]>;
+type TransferTask = { id: string; description: string; supportPerson: string };
 
 const sections: { type: SettingType; title: string; description: string }[] = [
   {
@@ -71,6 +73,12 @@ export default function SettingsPage() {
     index: number;
   } | null>(null);
   const [transferTargetId, setTransferTargetId] = useState("");
+  const [transferScope, setTransferScope] = useState<"all" | "selected">("all");
+  const [transferTasks, setTransferTasks] = useState<TransferTask[]>([]);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
+  const [isLoadingTransferTasks, setIsLoadingTransferTasks] = useState(false);
+  const [taskSearch, setTaskSearch] = useState("");
   const [editingName, setEditingName] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -123,8 +131,35 @@ export default function SettingsPage() {
     setDeletingItem(null);
     setTransferringItem({ type, index });
     setTransferTargetId(firstTarget?.id ?? "");
+    setTransferScope("all");
+    setTransferTasks([]);
+    setSelectedTaskIds([]);
+    setIsTaskPickerOpen(false);
+    setTaskSearch("");
     setError("");
     setNotice("");
+  }
+
+  async function openTaskPicker() {
+    if (!transferringItem) return;
+    const source = settings[transferringItem.type][transferringItem.index];
+    if (!source) return;
+    setIsTaskPickerOpen(true);
+    setTaskSearch("");
+    if (transferTasks.length || source.taskCount === 0) return;
+    setIsLoadingTransferTasks(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ type: transferringItem.type, sourceId: source.id });
+      const response = await fetch(`/api/settings/transfer?${params}`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Không thể tải danh sách task");
+      setTransferTasks(result.tasks);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Không thể tải danh sách task");
+    } finally {
+      setIsLoadingTransferTasks(false);
+    }
   }
 
   async function transferSetting() {
@@ -143,6 +178,7 @@ export default function SettingsPage() {
           type: transferringItem.type,
           sourceId: source.id,
           targetId: target.id,
+          ...(transferScope === "selected" ? { taskIds: selectedTaskIds } : {}),
         }),
       });
       const result = await response.json();
@@ -153,6 +189,16 @@ export default function SettingsPage() {
           ? `Đã chuyển ${transferredCount} công việc từ “${source.name}” sang “${target.name}”.`
           : `Không có công việc nào thuộc “${source.name}” để chuyển.`,
       );
+      setSettings((current) => ({
+        ...current,
+        [transferringItem.type]: current[transferringItem.type].map((item) => {
+          if (item.id === source.id) return { ...item, taskCount: Math.max(0, item.taskCount - transferredCount) };
+          if (item.id === target.id) {
+            return { ...item, taskCount: item.taskCount + transferredCount };
+          }
+          return item;
+        }),
+      }));
       setTransferringItem(null);
       setTransferTargetId("");
     } catch (transferError) {
@@ -223,7 +269,7 @@ export default function SettingsPage() {
       setSettings((current) => ({
         ...current,
         [editingItem.type]: current[editingItem.type].map((item, index) =>
-          index === editingItem.index ? { id: String(result._id), name: result.name } : item,
+          index === editingItem.index ? { ...item, id: String(result._id), name: result.name } : item,
         ),
       }));
       setEditingItem(null);
@@ -255,7 +301,7 @@ export default function SettingsPage() {
         throw new Error(result.error || "Không thể tạo cấu hình");
       setSettings((current) => ({
         ...current,
-        [activeType]: [...current[activeType], { id: String(result._id), name: result.name }],
+        [activeType]: [...current[activeType], { id: String(result._id), name: result.name, taskCount: 0 }],
       }));
       setActiveType(null);
       setName("");
@@ -424,6 +470,9 @@ export default function SettingsPage() {
                       ) : (
                         <>
                           <span className="min-w-0 flex-1">{item.name}</span>
+                          <span className="shrink-0 bg-[#e8ece9] px-2 py-1 text-[10px] font-bold text-[#657069]" title={`${item.taskCount} task`}>
+                            {item.taskCount} task
+                          </span>
                           <button
                             className="grid h-7 w-7 shrink-0 place-items-center border-0 bg-transparent text-[#727a82] transition hover:bg-[#e3f0e9] hover:text-[#28745b] disabled:cursor-not-allowed disabled:opacity-35"
                             type="button"
@@ -491,7 +540,30 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="mt-4 text-sm leading-6 text-[#515a60]">
-                Toàn bộ công việc đang dùng <strong className="text-[#20252b]">{source.name}</strong> sẽ được chuyển sang giá trị đích bên dưới. Giá trị nguồn vẫn được giữ lại.
+                Chọn phạm vi task cần chuyển từ <strong className="text-[#20252b]">{source.name}</strong>. Giá trị cấu hình nguồn vẫn được giữ lại.
+              </p>
+              <label className="mt-5 block text-xs font-bold uppercase tracking-[0.8px] text-[#515a60]" htmlFor="transfer-scope">Phạm vi chuyển giao</label>
+              <select
+                id="transfer-scope"
+                className="mt-2 h-12 w-full border border-[#d9dfe0] bg-[#fafbfa] px-3 text-sm text-[#20252b] outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]"
+                value={transferScope}
+                onChange={(event) => {
+                  const scope = event.target.value as "all" | "selected";
+                  setTransferScope(scope);
+                  if (scope === "selected") void openTaskPicker();
+                }}
+                disabled={isTransferring}
+              >
+                <option value="all">Tất cả task ({source.taskCount})</option>
+                <option value="selected">Chọn lọc task</option>
+              </select>
+              {transferScope === "selected" && (
+                <button className="mt-2 w-full border border-[#28745b] bg-white px-3 py-2.5 text-sm font-bold text-[#28745b] hover:bg-[#e3f0e9]" type="button" onClick={() => void openTaskPicker()}>
+                  {selectedTaskIds.length ? `Đã chọn ${selectedTaskIds.length} task — Chỉnh sửa` : "Mở danh sách chọn task"}
+                </button>
+              )}
+              <p className="mt-3 border border-[#b9d8cb] bg-[#e3f0e9] px-3 py-2.5 text-sm leading-6 text-[#1e604a]">
+                Sẽ chuyển giao tổng <strong>{transferScope === "all" ? source.taskCount : selectedTaskIds.length} task</strong> của cấu hình <strong>{source.name}</strong> cho cấu hình <strong>{settings[transferringItem.type].find((item) => item.id === transferTargetId)?.name ?? "đích"}</strong>.
               </p>
               <label className="mt-5 block text-xs font-bold uppercase tracking-[0.8px] text-[#515a60]" htmlFor="transfer-target">Chuyển đến</label>
               <select
@@ -508,10 +580,39 @@ export default function SettingsPage() {
               {error && <p className="mt-3 text-[13px] text-[#a34646]">{error}</p>}
               <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button className="h-11 border border-[#d9dfe0] bg-white px-5 text-sm text-[#515a60] hover:bg-[#f5f7f5] disabled:opacity-60" type="button" onClick={() => setTransferringItem(null)} disabled={isTransferring}>Hủy</button>
-                <button className="h-11 bg-[#28745b] px-5 text-sm font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60" type="button" onClick={() => void transferSetting()} disabled={isTransferring || !transferTargetId}>
+                <button className="h-11 bg-[#28745b] px-5 text-sm font-bold text-white hover:bg-[#1e604a] disabled:cursor-wait disabled:opacity-60" type="button" onClick={() => void transferSetting()} disabled={isTransferring || !transferTargetId || (transferScope === "selected" && selectedTaskIds.length === 0)}>
                   {isTransferring ? "Đang chuyển..." : "Xác nhận chuyển giao"}
                 </button>
               </div>
+            </section>
+          </div>
+        );
+      })()}
+      {transferringItem && isTaskPickerOpen && (() => {
+        const normalizedSearch = taskSearch.trim().toLocaleLowerCase("vi");
+        const filteredTasks = transferTasks.filter((task) =>
+          !normalizedSearch || task.description.toLocaleLowerCase("vi").includes(normalizedSearch) || task.supportPerson.toLocaleLowerCase("vi").includes(normalizedSearch)
+        );
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[#17221ddd] p-0 sm:items-center sm:p-6" role="presentation">
+            <section className="flex max-h-[88dvh] w-full max-w-[680px] flex-col border border-[#d9dfe0] bg-white p-5 shadow-2xl sm:p-7" role="dialog" aria-modal="true" aria-labelledby="task-picker-title">
+              <div className="flex items-start justify-between gap-4">
+                <div><p className="mb-1 text-[10px] font-bold tracking-[1.5px] text-[#28745b]">CHỌN LỌC</p><h2 id="task-picker-title" className="text-lg">Chọn task cần chuyển giao</h2></div>
+                <button className="grid h-9 w-9 place-items-center text-[#727a82] hover:bg-[#f5f7f5]" type="button" aria-label="Đóng" onClick={() => setIsTaskPickerOpen(false)}><FontAwesomeIcon icon={faXmark} /></button>
+              </div>
+              <label className="relative mt-5 block">
+                <span className="sr-only">Tìm task</span><FontAwesomeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#727a82]" icon={faMagnifyingGlass} />
+                <input className="h-11 w-full border border-[#d9dfe0] bg-[#fafbfa] pl-9 pr-3 text-sm outline-none focus:border-[#28745b] focus:ring-2 focus:ring-[#e3f0e9]" type="search" value={taskSearch} onChange={(event) => setTaskSearch(event.target.value)} placeholder="Tìm theo mô tả hoặc người hỗ trợ..." autoFocus />
+              </label>
+              <div className="mt-3 min-h-0 flex-1 overflow-y-auto border border-[#e3e7e9]">
+                {isLoadingTransferTasks ? <p className="p-5 text-center text-sm text-[#727a82]">Đang tải danh sách task...</p> : filteredTasks.length ? (
+                  <ul className="divide-y divide-[#e3e7e9]">{filteredTasks.map((task) => {
+                    const checked = selectedTaskIds.includes(task.id);
+                    return <li key={task.id}><label className={`grid cursor-pointer grid-cols-[20px_minmax(0,1fr)] gap-3 p-3 hover:bg-[#f5f7f5] ${checked ? "bg-[#e3f0e9]" : ""}`}><input type="checkbox" className="mt-1 h-4 w-4 accent-[#28745b]" checked={checked} onChange={() => setSelectedTaskIds((current) => checked ? current.filter((id) => id !== task.id) : [...current, task.id])} /><span className="min-w-0"><strong className="block text-sm leading-5 text-[#20252b]">{task.description}</strong><span className="mt-1 block truncate text-xs text-[#727a82]">Người hỗ trợ: {task.supportPerson || "—"}</span></span></label></li>;
+                  })}</ul>
+                ) : <p className="p-5 text-center text-sm text-[#727a82]">Không tìm thấy task phù hợp.</p>}
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3"><span className="text-sm font-bold text-[#515a60]">Đã chọn {selectedTaskIds.length} task</span><button className="h-11 bg-[#28745b] px-5 text-sm font-bold text-white disabled:opacity-50" type="button" disabled={!selectedTaskIds.length} onClick={() => setIsTaskPickerOpen(false)}>Xác nhận lựa chọn</button></div>
             </section>
           </div>
         );

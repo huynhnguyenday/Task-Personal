@@ -8,8 +8,22 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     await connectToDatabase();
-    const items = await Setting.find().sort({ name: 1 }).lean();
     const includeIds = new URL(request.url).searchParams.get("format") === "items";
+    const [items, ...taskCountGroups] = await Promise.all([
+      Setting.find().sort({ name: 1 }).lean(),
+      ...SETTING_TYPES.map((type) =>
+        Task.aggregate<{ _id: unknown; count: number }>([
+          { $match: { [`${type}Id`]: { $exists: true, $ne: null } } },
+          { $group: { _id: `$${type}Id`, count: { $sum: 1 } } },
+        ]),
+      ),
+    ]);
+    const taskCounts = Object.fromEntries(
+      SETTING_TYPES.map((type, index) => [
+        type,
+        new Map(taskCountGroups[index].map((entry) => [String(entry._id), entry.count])),
+      ]),
+    ) as Record<SettingType, Map<string, number>>;
     const grouped = {
       category: [],
       department: [],
@@ -18,7 +32,14 @@ export async function GET(request: Request) {
       status: [],
     } as Record<SettingType, unknown[]>;
 
-    for (const item of items) grouped[item.type].push(includeIds ? { id: item._id.toString(), name: item.name } : item.name);
+    for (const item of items) {
+      const id = item._id.toString();
+      grouped[item.type].push(
+        includeIds
+          ? { id, name: item.name, taskCount: taskCounts[item.type].get(id) ?? 0 }
+          : item.name,
+      );
+    }
     return NextResponse.json(grouped);
   } catch {
     return NextResponse.json(
