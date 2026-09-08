@@ -150,6 +150,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const requestStartedAt = performance.now();
   try {
     const body = await request.json();
     const description =
@@ -180,20 +181,32 @@ export async function POST(request: Request) {
     }
 
     await connectToDatabase();
+    const connectedAt = performance.now();
     const config = await resolveConfig(body);
+    const configResolvedAt = performance.now();
     const task = await Task.create({
       description,
       supportPerson: typeof body.supportPerson === "string" ? body.supportPerson.trim() : "",
       ...config.values,
       notes: body.notes ?? "",
     });
+    const taskCreatedAt = performance.now();
 
     invalidateAnalyticsSnapshot();
     return NextResponse.json({
       ...task.toObject(),
       ...config.names,
       ...Object.fromEntries(CONFIG_FIELDS.map((type) => [`${type}Id`, String(task[`${type}Id` as keyof typeof task] ?? "")])),
-    }, { status: 201 });
+    }, {
+      status: 201,
+      headers: {
+        "Server-Timing": [
+          `db-connect;dur=${(connectedAt - requestStartedAt).toFixed(1)}`,
+          `config-query;dur=${(configResolvedAt - connectedAt).toFixed(1)}`,
+          `task-insert;dur=${(taskCreatedAt - configResolvedAt).toFixed(1)}`,
+        ].join(", "),
+      },
+    });
   } catch (error) {
     console.error("POST /api/tasks failed:", error);
     if (error instanceof Error && (error.name === "ValidationError" || error.message.startsWith("INVALID_CONFIG:"))) {
